@@ -42,3 +42,5 @@ next-env.d.ts
 
 # OpenAPI generated client
 /src/api/
+
+CLAUDE.md
