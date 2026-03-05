@@ -131,6 +131,16 @@ export default function LoginPage() {
               立即注册
             </Link>
           </p>
+
+          {/* 新增：管理员后台入口 */}
+          <div className="mt-4 pt-4 border-t text-center">
+            <Link 
+              href="/admin/users" 
+              className="text-xs text-muted-foreground/60 hover:text-red-500 transition-colors flex items-center justify-center gap-1"
+            >
+              <span>🛡️</span> 进入管理员后台 (Admin Demo)
+            </Link>
+          </div>
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
