@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+// [新增] 引入图标
+import { CheckCircle2, Star } from "lucide-react";
 
 const mockUser = {
   name: "南科小卖家",
@@ -38,13 +40,28 @@ export default function ProfilePage() {
       <div className="bg-gradient-to-b from-primary/10 to-background px-4 pt-6 pb-4">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-4">
-            {/* Avatar */}
-            <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/60 to-primary flex items-center justify-center text-3xl font-bold text-primary-foreground shadow-lg">
-              {mockUser.avatar}
+            {/* Avatar Section with Verification Badge */}
+            <div className="relative"> {/* [修改] 增加 relative 容器 */}
+                <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/60 to-primary flex items-center justify-center text-3xl font-bold text-primary-foreground shadow-lg">
+                  {mockUser.avatar}
+                </div>
+                {/* [新增] 认证徽章 - 绝对定位 */}
+                <div className="absolute -bottom-1 -right-1 bg-white p-0.5 rounded-full shadow-sm">
+                   <CheckCircle2 className="w-5 h-5 text-blue-500 fill-blue-100" />
+                </div>
             </div>
+            
             <div>
               <h1 className="text-xl font-bold">{mockUser.name}</h1>
-              <p className="text-sm text-muted-foreground">{mockUser.username}</p>
+              
+              {/* [新增] 信誉分展示条 */}
+              <div className="flex items-center gap-1.5 mt-1 bg-amber-100/50 px-2 py-0.5 rounded-md w-fit border border-amber-100">
+                <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                <span className="text-xs font-bold text-amber-700">信誉极好 4.9</span>
+              </div>
+
+              <p className="text-sm text-muted-foreground mt-1">{mockUser.username}</p>
+              
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5 font-medium">
                   {mockUser.college}
@@ -53,6 +70,7 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
+          
           <button
             onClick={() => setEditing(!editing)}
             className="shrink-0 rounded-xl border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
@@ -108,17 +126,19 @@ export default function ProfilePage() {
                     {item.emoji}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm line-clamp-1">{item.title}</p>
+                    <div className="flex items-center justify-between">
+                        <p className="font-medium text-sm line-clamp-1">{item.title}</p>
+                        <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium ${
+                            item.status === "在售"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-muted text-muted-foreground"
+                        }`}>
+                            {item.status}
+                        </span>
+                    </div>
                     <p className="text-xs text-muted-foreground mt-0.5">{item.condition}</p>
-                    <p className="font-bold mt-1">¥{item.price}</p>
+                    <p className="font-bold mt-1 text-primary">¥{item.price}</p>
                   </div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
-                    item.status === "在售"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-muted text-muted-foreground"
-                  }`}>
-                    {item.status}
-                  </span>
                 </div>
               </Link>
             ))}
@@ -152,7 +172,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="p-3 space-y-1">
                     <p className="text-sm font-medium line-clamp-2 leading-snug">{item.title}</p>
-                    <span className="font-bold text-base">¥{item.price}</span>
+                    <span className="font-bold text-base text-primary">¥{item.price}</span>
                   </div>
                 </article>
               </Link>
@@ -162,8 +182,8 @@ export default function ProfilePage() {
       </div>
 
       {/* Settings section */}
-      <div className="px-4 pb-8 mt-4">
-        <div className="border rounded-2xl overflow-hidden divide-y">
+      <div className="px-4 pb-24 mt-4">
+        <div className="border rounded-2xl overflow-hidden divide-y bg-card">
           {[
             { icon: "🔔", label: "通知设置" },
             { icon: "🔒", label: "账号安全" },
@@ -183,7 +203,7 @@ export default function ProfilePage() {
           ))}
         </div>
 
-        <button className="w-full mt-4 rounded-2xl border border-red-200 py-3.5 text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors">
+        <button className="w-full mt-4 rounded-2xl border border-red-200 py-3.5 text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors bg-card">
           退出登录
         </button>
       </div>
