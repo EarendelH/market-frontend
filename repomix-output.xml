@@ -1,0 +1,4567 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.gitignore
+components.json
+eslint.config.mjs
+FRONTEND_GUIDE.md
+next.config.ts
+package.json
+postcss.config.mjs
+public/file.svg
+public/globe.svg
+public/next.svg
+public/vercel.svg
+public/window.svg
+README.md
+src/app/(auth)/login/page.tsx
+src/app/(auth)/register/page.tsx
+src/app/admin/items/page.tsx
+src/app/admin/layout.tsx
+src/app/admin/orders/page.tsx
+src/app/admin/page.tsx
+src/app/admin/reports/page.tsx
+src/app/admin/users/page.tsx
+src/app/chat/layout.tsx
+src/app/chat/page.tsx
+src/app/favicon.ico
+src/app/globals.css
+src/app/layout.tsx
+src/app/map/layout.tsx
+src/app/map/page.tsx
+src/app/marketplace/[id]/page.tsx
+src/app/marketplace/layout.tsx
+src/app/marketplace/page.tsx
+src/app/page.tsx
+src/app/profile/layout.tsx
+src/app/profile/page.tsx
+src/app/types/index.ts
+src/components/layout/app-shell.tsx
+src/components/layout/mobile-nav.tsx
+src/components/layout/sidebar.tsx
+src/components/providers/query-provider.tsx
+src/components/ui/avatar.tsx
+src/components/ui/badge.tsx
+src/components/ui/button.tsx
+src/components/ui/card.tsx
+src/components/ui/dialog.tsx
+src/components/ui/dropdown-menu.tsx
+src/components/ui/input.tsx
+src/components/ui/sonner.tsx
+src/components/ui/tabs.tsx
+src/hooks/use-media-query.ts
+src/lib/api-client.ts
+src/lib/socket.ts
+src/lib/utils.ts
+src/stores/auth-store.ts
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="components.json">
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/app/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "rtl": false,
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  },
+  "registries": {}
+}
+</file>
+
+<file path="eslint.config.mjs">
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
+</file>
+
+<file path="FRONTEND_GUIDE.md">
+# SUSTech Market 前端开发指南
+
+> SUSTech 校园社交交易平台 — 前端脚手架说明与开发规范
+
+---
+
+## 目录
+
+1. [项目概述](#1-项目概述)
+2. [技术栈](#2-技术栈)
+3. [项目结构](#3-项目结构)
+4. [核心模块说明](#4-核心模块说明)
+   - 4.1 [响应式布局](#41-响应式布局)
+   - 4.2 [API 客户端](#42-api-客户端)
+   - 4.3 [认证状态管理](#43-认证状态管理)
+   - 4.4 [Socket.IO 实时通信](#44-socketio-实时通信)
+   - 4.5 [TanStack Query 数据请求](#45-tanstack-query-数据请求)
+5. [后续开发指导](#5-后续开发指导)
+   - 5.1 [添加新页面](#51-添加新页面)
+   - 5.2 [接入后端 API](#52-接入后端-api)
+   - 5.3 [表单开发（React Hook Form + Zod）](#53-表单开发)
+   - 5.4 [实时通信（Socket.IO）](#54-实时通信)
+   - 5.5 [地图功能（Leaflet）](#55-地图功能)
+   - 5.6 [OpenAPI 代码自动生成](#56-openapi-代码自动生成)
+6. [开发规范](#6-开发规范)
+7. [常用命令](#7-常用命令)
+
+---
+
+## 1. 项目概述
+
+本前端基于 **Next.js 14 App Router** 构建，支持 PC 和移动端响应式设计。
+
+| 路由 | 功能 |
+|------|------|
+| `/marketplace` | 商品交易列表（首页） |
+| `/marketplace/[id]` | 商品详情页 |
+| `/chat` | 实时聊天 |
+| `/map` | 校园地图 |
+| `/profile` | 个人中心 |
+| `/login` | 登录 |
+| `/register` | 注册 |
+
+后端通过 `next.config.ts` 的 rewrites 代理到 Flask（`http://localhost:5000`），前端只需请求 `/api/*`。
+
+---
+
+## 2. 技术栈
+
+| 分类 | 库 | 版本 | 用途 |
+|------|----|------|------|
+| 框架 | Next.js | 16 | App Router、SSR/SSG |
+| UI | React | 19 | 视图层 |
+| 语言 | TypeScript | 5 | 类型安全 |
+| 样式 | Tailwind CSS | 4 | 原子化 CSS |
+| 组件库 | shadcn/ui | latest | 可复用 UI 组件 |
+| 数据请求 | TanStack Query | 5 | 服务端状态、缓存、loading |
+| 全局状态 | Zustand | 5 | 客户端状态（如认证信息） |
+| 表单 | React Hook Form + Zod | 7 / 4 | 表单验证 |
+| 实时通信 | Socket.IO Client | 4 | WebSocket 聊天 |
+| 地图 | Leaflet + react-leaflet | 1 / 5 | 校园地图 |
+| API 生成 | openapi-typescript-codegen | 0.30 | 从 OpenAPI spec 自动生成 |
+
+---
+
+## 3. 项目结构
+
+```
+frontend/
+├── src/
+│   ├── app/                        # Next.js App Router 路由
+│   │   ├── layout.tsx              # 根布局（字体、QueryProvider、Toaster）
+│   │   ├── page.tsx                # 首页 → redirect /marketplace
+│   │   ├── globals.css             # Tailwind + shadcn/ui CSS 变量
+│   │   ├── (auth)/                 # 路由分组：不含导航栏
+│   │   │   ├── login/page.tsx
+│   │   │   └── register/page.tsx
+│   │   ├── marketplace/
+│   │   │   ├── layout.tsx          # 包裹 AppShell
+│   │   │   ├── page.tsx            # 商品列表
+│   │   │   └── [id]/page.tsx       # 商品详情（动态路由）
+│   │   ├── chat/
+│   │   │   ├── layout.tsx
+│   │   │   └── page.tsx
+│   │   ├── map/
+│   │   │   ├── layout.tsx
+│   │   │   └── page.tsx
+│   │   └── profile/
+│   │       ├── layout.tsx
+│   │       └── page.tsx
+│   ├── components/
+│   │   ├── ui/                     # shadcn/ui 组件（自动生成，勿手动修改）
+│   │   ├── layout/
+│   │   │   ├── app-shell.tsx       # 响应式容器（Sidebar + MobileNav）
+│   │   │   ├── sidebar.tsx         # PC 左侧导航（md 及以上显示）
+│   │   │   └── mobile-nav.tsx      # 移动端底部 Tab（md 以下显示）
+│   │   └── providers/
+│   │       └── query-provider.tsx  # TanStack QueryClientProvider
+│   ├── hooks/
+│   │   └── use-media-query.ts      # 响应式断点 hook
+│   ├── lib/
+│   │   ├── utils.ts                # cn() 合并 className 工具
+│   │   ├── api-client.ts           # fetch 封装（baseURL、JWT 注入、错误处理）
+│   │   └── socket.ts               # Socket.IO 单例配置
+│   ├── stores/
+│   │   └── auth-store.ts           # Zustand 认证状态
+│   └── api/                        # OpenAPI 自动生成（已加入 .gitignore）
+├── next.config.ts                  # API 代理 /api/* → Flask :5000
+├── package.json                    # scripts: dev / build / generate-api
+└── .gitignore
+```
+
+---
+
+## 4. 核心模块说明
+
+### 4.1 响应式布局
+
+**文件**: `src/components/layout/`
+
+断点：`md`（768px）
+- **>= 768px**：显示 `Sidebar`（左侧 60px 固定宽度导航）
+- **< 768px**：显示 `MobileNav`（底部 fixed Tab 栏）
+
+`AppShell` 是二者的容器，在需要导航栏的页面通过 `layout.tsx` 包裹：
+
+```tsx
+// app/marketplace/layout.tsx
+import { AppShell } from "@/components/layout/app-shell";
+
+export default function MarketplaceLayout({ children }) {
+  return <AppShell>{children}</AppShell>;
+}
+```
+
+登录/注册页属于 `(auth)` 路由分组，**不使用** AppShell，因此没有导航栏。
+
+---
+
+### 4.2 API 客户端
+
+**文件**: `src/lib/api-client.ts`
+
+封装了 `fetch`，自动从 `localStorage` 读取 JWT Token 并注入 `Authorization` 头：
+
+```ts
+import { apiClient } from "@/lib/api-client";
+
+// GET
+const items = await apiClient.get<Item[]>("/items");
+
+// POST
+const result = await apiClient.post<Item>("/items", { title: "旧书", price: 20 });
+
+// PUT / DELETE
+await apiClient.put("/items/1", { price: 15 });
+await apiClient.delete("/items/1");
+```
+
+错误处理：非 2xx 状态码抛出 `ApiError`，包含 `status` 和 `message` 字段。
+
+---
+
+### 4.3 认证状态管理
+
+**文件**: `src/stores/auth-store.ts`
+
+使用 Zustand 管理登录状态：
+
+```ts
+import { useAuthStore } from "@/stores/auth-store";
+
+// 组件内使用
+function Header() {
+  const { user, isAuthenticated, logout } = useAuthStore();
+  return <span>{user?.username}</span>;
+}
+
+// 登录成功后
+useAuthStore.getState().setAuth(user, token);
+
+// 退出登录
+useAuthStore.getState().logout();
+```
+
+Token 同时存入 `localStorage`，刷新页面后 `api-client.ts` 仍可读取。
+
+---
+
+### 4.4 Socket.IO 实时通信
+
+**文件**: `src/lib/socket.ts`
+
+采用单例模式，避免重复创建连接：
+
+```ts
+import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
+
+// 登录后连接
+connectSocket(token);
+
+// 监听事件
+const socket = getSocket();
+socket.on("new_message", (msg) => {
+  // 处理新消息
+});
+
+// 发送消息
+socket.emit("send_message", { roomId: "123", content: "你好" });
+
+// 退出时断开
+disconnectSocket();
+```
+
+---
+
+### 4.5 TanStack Query 数据请求
+
+**文件**: `src/components/providers/query-provider.tsx`
+
+已在根 `layout.tsx` 中全局注册。在组件内直接使用：
+
+```ts
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+
+// 查询
+function ItemList() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["items"],
+    queryFn: () => apiClient.get<Item[]>("/items"),
+  });
+}
+
+// 变更（POST/PUT/DELETE）
+const queryClient = useQueryClient();
+const mutation = useMutation({
+  mutationFn: (data) => apiClient.post("/items", data),
+  onSuccess: () => queryClient.invalidateQueries({ queryKey: ["items"] }),
+});
+```
+
+---
+
+## 5. 后续开发指导
+
+### 5.1 添加新页面
+
+**Step 1**: 在 `src/app/` 下创建目录和 `page.tsx`。
+
+```
+src/app/orders/page.tsx
+src/app/orders/layout.tsx   # 若需要导航栏
+```
+
+**Step 2**: 若需要导航栏，`layout.tsx` 包裹 `AppShell`：
+
+```tsx
+import { AppShell } from "@/components/layout/app-shell";
+
+export default function OrdersLayout({ children }) {
+  return <AppShell>{children}</AppShell>;
+}
+```
+
+**Step 3**: 若需要加入底部/侧边导航，编辑 `sidebar.tsx` 和 `mobile-nav.tsx` 中的 `navItems` 数组：
+
+```ts
+const navItems = [
+  { href: "/marketplace", label: "市场", icon: "🏪" },
+  { href: "/orders",      label: "订单", icon: "📦" }, // 新增
+  // ...
+];
+```
+
+---
+
+### 5.2 接入后端 API
+
+**推荐方式**：TanStack Query + apiClient 组合。
+
+**完整示例**（商品列表页）:
+
+```tsx
+// src/app/marketplace/page.tsx
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+
+interface Item {
+  id: number;
+  title: string;
+  price: number;
+  seller: string;
+}
+
+export default function MarketplacePage() {
+  const { data: items, isLoading, isError } = useQuery({
+    queryKey: ["items"],
+    queryFn: () => apiClient.get<Item[]>("/items"),
+  });
+
+  if (isLoading) return <p>加载中...</p>;
+  if (isError)   return <p>加载失败</p>;
+
+  return (
+    <div className="p-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+      {items?.map((item) => (
+        <div key={item.id} className="rounded border p-3">
+          <p className="font-bold">{item.title}</p>
+          <p className="text-muted-foreground">¥{item.price}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+> 注意：从服务端组件（无 `"use client"`）调用 API 时，直接用 `apiClient.get()` 即可，无需 useQuery。
+
+---
+
+### 5.3 表单开发
+
+**依赖**: React Hook Form + Zod + shadcn/ui 组件
+
+**完整示例**（发布商品表单）:
+
+```tsx
+"use client";
+
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+// 1. 定义 schema（Zod 自动推断类型）
+const schema = z.object({
+  title: z.string().min(2, "标题至少 2 个字"),
+  price: z.number({ invalid_type_error: "请输入价格" }).positive("价格必须大于 0"),
+  description: z.string().optional(),
+});
+
+type FormData = z.infer<typeof schema>;
+
+// 2. 使用表单
+export function PublishForm() {
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+  });
+
+  const onSubmit = (data: FormData) => {
+    // 调用 API
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div>
+        <Input {...register("title")} placeholder="商品标题" />
+        {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
+      </div>
+      <div>
+        <Input {...register("price", { valueAsNumber: true })} type="number" placeholder="价格" />
+        {errors.price && <p className="text-sm text-destructive">{errors.price.message}</p>}
+      </div>
+      <Button type="submit">发布</Button>
+    </form>
+  );
+}
+```
+
+---
+
+### 5.4 实时通信
+
+**场景**：聊天页面接入 Socket.IO。
+
+```tsx
+"use client";
+
+import { useEffect, useState } from "react";
+import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
+import { useAuthStore } from "@/stores/auth-store";
+
+interface Message {
+  id: string;
+  content: string;
+  sender: string;
+}
+
+export function ChatRoom({ roomId }: { roomId: string }) {
+  const token = useAuthStore((s) => s.token);
+  const [messages, setMessages] = useState<Message[]>([]);
+
+  useEffect(() => {
+    const socket = connectSocket(token ?? undefined);
+
+    socket.emit("join_room", { roomId });
+    socket.on("new_message", (msg: Message) => {
+      setMessages((prev) => [...prev, msg]);
+    });
+
+    return () => {
+      socket.off("new_message");
+      disconnectSocket();
+    };
+  }, [roomId, token]);
+
+  const sendMessage = (content: string) => {
+    getSocket().emit("send_message", { roomId, content });
+  };
+
+  return (
+    <div>
+      {messages.map((m) => <p key={m.id}>{m.sender}: {m.content}</p>)}
+    </div>
+  );
+}
+```
+
+---
+
+### 5.5 地图功能
+
+Leaflet 需要在客户端渲染（`"use client"`），且 CSS 需单独引入。
+
+**基础地图组件**:
+
+```tsx
+"use client";
+
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+
+// 修复 Leaflet 默认图标路径（Next.js 中必须）
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "/leaflet/marker-icon-2x.png",
+  iconUrl: "/leaflet/marker-icon.png",
+  shadowUrl: "/leaflet/marker-shadow.png",
+});
+
+// SUSTech 校区中心坐标
+const SUSTECH_CENTER: [number, number] = [22.5996, 113.9939];
+
+export function CampusMap() {
+  return (
+    <MapContainer
+      center={SUSTECH_CENTER}
+      zoom={16}
+      style={{ height: "100%", width: "100%" }}
+    >
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <Marker position={SUSTECH_CENTER}>
+        <Popup>南方科技大学</Popup>
+      </Marker>
+    </MapContainer>
+  );
+}
+```
+
+将 Leaflet 图标文件（`marker-icon.png` 等）放到 `public/leaflet/` 目录，或使用 CDN 图标。
+
+> 注意：在页面中使用时需配合 `next/dynamic` 禁用 SSR：
+> ```ts
+> const CampusMap = dynamic(() => import("@/components/campus-map"), { ssr: false });
+> ```
+
+---
+
+### 5.6 OpenAPI 代码自动生成
+
+后端 Flask 通过 `http://localhost:5000/openapi.json` 暴露 OpenAPI spec，前端可自动生成类型安全的 API 客户端。
+
+**运行生成命令**（确保后端已启动）:
+
+```bash
+npm run generate-api
+```
+
+等同于：
+```bash
+openapi --input http://localhost:5000/openapi.json --output src/api --client fetch
+```
+
+生成后 `src/api/` 目录会包含：
+- `models/` — 所有请求/响应类型
+- `services/` — 按 tag 分组的 API 调用函数
+- `core/` — 基础 fetch 配置
+
+使用示例：
+```ts
+import { ItemsService } from "@/api/services/ItemsService";
+
+const items = await ItemsService.getItems();
+```
+
+> `src/api/` 已加入 `.gitignore`，每次环境搭建或后端 API 变更后需重新运行 `npm run generate-api`。
+
+---
+
+## 6. 开发规范
+
+### 组件规范
+
+| 规则 | 说明 |
+|------|------|
+| 服务端组件优先 | 无 `"use client"` 为默认，有交互/状态才加 |
+| 文件命名 | 组件用 `kebab-case.tsx`，类型用 `PascalCase` |
+| shadcn/ui 组件 | 从 `@/components/ui/` 引入，不修改源文件 |
+| 业务组件 | 放 `@/components/` 下，按功能分目录 |
+
+### 样式规范
+
+- 使用 Tailwind 原子类，避免行内 `style`
+- 响应式：移动优先（`md:`, `lg:` 等断点）
+- 动态 className 使用 `cn()` 工具函数（来自 `@/lib/utils`）
+
+```ts
+import { cn } from "@/lib/utils";
+
+<div className={cn("base-class", isActive && "active-class", className)} />
+```
+
+### 数据流规范
+
+```
+后端 Flask API
+    ↓
+next.config.ts 代理 /api/*
+    ↓
+api-client.ts (fetch + JWT)
+    ↓
+TanStack Query (缓存 + loading 状态)
+    ↓
+React 组件
+```
+
+全局状态（用户信息）用 **Zustand**，服务端数据用 **TanStack Query**，不要把 API 数据放进 Zustand。
+
+---
+
+## 7. 常用命令
+
+```bash
+# 启动开发服务器
+npm run dev
+
+# 生产构建
+npm run build
+
+# 启动生产服务器
+npm run start
+
+# 类型检查 + Lint
+npm run lint
+
+# 从后端 OpenAPI spec 自动生成 API 客户端（需后端运行中）
+npm run generate-api
+
+# 安装新 shadcn/ui 组件（示例）
+npx shadcn@latest add select
+npx shadcn@latest add sheet
+```
+
+---
+
+> 文档最后更新：2026-03-01
+> 对应后端：Flask + Python，监听 `http://localhost:5000`
+</file>
+
+<file path="postcss.config.mjs">
+const config = {
+  plugins: {
+    "@tailwindcss/postcss": {},
+  },
+};
+
+export default config;
+</file>
+
+<file path="public/file.svg">
+<svg fill="none" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 13.5V5.41a1 1 0 0 0-.3-.7L9.8.29A1 1 0 0 0 9.08 0H1.5v13.5A2.5 2.5 0 0 0 4 16h8a2.5 2.5 0 0 0 2.5-2.5m-1.5 0v-7H8v-5H3v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1M9.5 5V2.12L12.38 5zM5.13 5h-.62v1.25h2.12V5zm-.62 3h7.12v1.25H4.5zm.62 3h-.62v1.25h7.12V11z" clip-rule="evenodd" fill="#666" fill-rule="evenodd"/></svg>
+</file>
+
+<file path="public/globe.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g clip-path="url(#a)"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.27 14.1a6.5 6.5 0 0 0 3.67-3.45q-1.24.21-2.7.34-.31 1.83-.97 3.1M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.48-1.52a7 7 0 0 1-.96 0H7.5a4 4 0 0 1-.84-1.32q-.38-.89-.63-2.08a40 40 0 0 0 3.92 0q-.25 1.2-.63 2.08a4 4 0 0 1-.84 1.31zm2.94-4.76q1.66-.15 2.95-.43a7 7 0 0 0 0-2.58q-1.3-.27-2.95-.43a18 18 0 0 1 0 3.44m-1.27-3.54a17 17 0 0 1 0 3.64 39 39 0 0 1-4.3 0 17 17 0 0 1 0-3.64 39 39 0 0 1 4.3 0m1.1-1.17q1.45.13 2.69.34a6.5 6.5 0 0 0-3.67-3.44q.65 1.26.98 3.1M8.48 1.5l.01.02q.41.37.84 1.31.38.89.63 2.08a40 40 0 0 0-3.92 0q.25-1.2.63-2.08a4 4 0 0 1 .85-1.32 7 7 0 0 1 .96 0m-2.75.4a6.5 6.5 0 0 0-3.67 3.44 29 29 0 0 1 2.7-.34q.31-1.83.97-3.1M4.58 6.28q-1.66.16-2.95.43a7 7 0 0 0 0 2.58q1.3.27 2.95.43a18 18 0 0 1 0-3.44m.17 4.71q-1.45-.12-2.69-.34a6.5 6.5 0 0 0 3.67 3.44q-.65-1.27-.98-3.1" fill="#666"/></g><defs><clipPath id="a"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
+</file>
+
+<file path="public/next.svg">
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 394 80"><path fill="#000" d="M262 0h68.5v12.7h-27.2v66.6h-13.6V12.7H262V0ZM149 0v12.7H94v20.4h44.3v12.6H94v21h55v12.6H80.5V0h68.7zm34.3 0h-17.8l63.8 79.4h17.9l-32-39.7 32-39.6h-17.9l-23 28.6-23-28.6zm18.3 56.7-9-11-27.1 33.7h17.8l18.3-22.7z"/><path fill="#000" d="M81 79.3 17 0H0v79.3h13.6V17l50.2 62.3H81Zm252.6-.4c-1 0-1.8-.4-2.5-1s-1.1-1.6-1.1-2.6.3-1.8 1-2.5 1.6-1 2.6-1 1.8.3 2.5 1a3.4 3.4 0 0 1 .6 4.3 3.7 3.7 0 0 1-3 1.8zm23.2-33.5h6v23.3c0 2.1-.4 4-1.3 5.5a9.1 9.1 0 0 1-3.8 3.5c-1.6.8-3.5 1.3-5.7 1.3-2 0-3.7-.4-5.3-1s-2.8-1.8-3.7-3.2c-.9-1.3-1.4-3-1.4-5h6c.1.8.3 1.6.7 2.2s1 1.2 1.6 1.5c.7.4 1.5.5 2.4.5 1 0 1.8-.2 2.4-.6a4 4 0 0 0 1.6-1.8c.3-.8.5-1.8.5-3V45.5zm30.9 9.1a4.4 4.4 0 0 0-2-3.3 7.5 7.5 0 0 0-4.3-1.1c-1.3 0-2.4.2-3.3.5-.9.4-1.6 1-2 1.6a3.5 3.5 0 0 0-.3 4c.3.5.7.9 1.3 1.2l1.8 1 2 .5 3.2.8c1.3.3 2.5.7 3.7 1.2a13 13 0 0 1 3.2 1.8 8.1 8.1 0 0 1 3 6.5c0 2-.5 3.7-1.5 5.1a10 10 0 0 1-4.4 3.5c-1.8.8-4.1 1.2-6.8 1.2-2.6 0-4.9-.4-6.8-1.2-2-.8-3.4-2-4.5-3.5a10 10 0 0 1-1.7-5.6h6a5 5 0 0 0 3.5 4.6c1 .4 2.2.6 3.4.6 1.3 0 2.5-.2 3.5-.6 1-.4 1.8-1 2.4-1.7a4 4 0 0 0 .8-2.4c0-.9-.2-1.6-.7-2.2a11 11 0 0 0-2.1-1.4l-3.2-1-3.8-1c-2.8-.7-5-1.7-6.6-3.2a7.2 7.2 0 0 1-2.4-5.7 8 8 0 0 1 1.7-5 10 10 0 0 1 4.3-3.5c2-.8 4-1.2 6.4-1.2 2.3 0 4.4.4 6.2 1.2 1.8.8 3.2 2 4.3 3.4 1 1.4 1.5 3 1.5 5h-5.8z"/></svg>
+</file>
+
+<file path="public/vercel.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1155 1000"><path d="m577.3 0 577.4 1000H0z" fill="#fff"/></svg>
+</file>
+
+<file path="public/window.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.5 2.5h13v10a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1zM0 1h16v11.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 0 12.5zm3.75 4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5M7 4.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0m1.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5" fill="#666"/></svg>
+</file>
+
+<file path="README.md">
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Getting Started
+
+First, run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+</file>
+
+<file path="src/app/admin/items/page.tsx">
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Trash2, EyeOff } from "lucide-react";
+
+const initialItems = [
+  { id: "123", title: "线性代数教材", seller: "小明", status: "在售", price: 15 },
+  { id: "124", title: "代写作业服务", seller: "User_Unknown", status: "违规", price: 200 },
+];
+
+export default function ItemManagement() {
+  const [items, setItems] = useState(initialItems);
+
+  const deleteItem = (id: string) => {
+    setItems(items.filter(i => i.id !== id));
+  };
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">商品管理</h1>
+      <div className="rounded-xl border bg-card shadow-sm">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-muted/50 border-b">
+            <tr>
+              <th className="px-6 py-4">商品ID</th>
+              <th className="px-6 py-4">标题</th>
+              <th className="px-6 py-4">发布者</th>
+              <th className="px-6 py-4">价格</th>
+              <th className="px-6 py-4">状态</th>
+              <th className="px-6 py-4 text-right">管理</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {items.map((item) => (
+              <tr key={item.id}>
+                <td className="px-6 py-4 font-mono text-muted-foreground">{item.id}</td>
+                <td className="px-6 py-4 font-medium">{item.title}</td>
+                <td className="px-6 py-4">{item.seller}</td>
+                <td className="px-6 py-4">¥{item.price}</td>
+                <td className="px-6 py-4">{item.status}</td>
+                <td className="px-6 py-4 text-right space-x-2">
+                  <Button size="sm" variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-50">
+                    <EyeOff className="h-4 w-4 mr-1" /> 下架
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => deleteItem(item.id)}>
+                    <Trash2 className="h-4 w-4 mr-1" /> 删除
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/admin/layout.tsx">
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Shield, Users, Package, Flag, Gavel, LogOut } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+
+// 左侧导航菜单配置
+const adminNavItems = [
+  { href: "/admin", label: "仪表盘", icon: Shield }, // 新增仪表盘入口
+  { href: "/admin/users", label: "用户管理", icon: Users },
+  { href: "/admin/items", label: "商品管理", icon: Package },
+  { href: "/admin/reports", label: "举报处理", icon: Flag },
+  { href: "/admin/orders", label: "订单仲裁", icon: Gavel },
+];
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  return (
+    <div className="flex min-h-screen bg-muted/20">
+      {/* --- 左侧黑色侧边栏开始 --- */}
+      <aside className="w-64 bg-slate-900 text-slate-100 flex flex-col fixed inset-y-0 z-50">
+        <div className="h-16 flex items-center px-6 border-b border-slate-800 font-bold text-lg tracking-wider">
+          <Shield className="mr-2 h-6 w-6 text-red-500" />
+          ADMIN CENTER
+        </div>
+        
+        <nav className="flex-1 p-4 space-y-2">
+          {adminNavItems.map((item) => {
+            const Icon = item.icon;
+            // 判断当前路径是否匹配，高亮显示
+            const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-red-600 text-white shadow-md"
+                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                )}
+              >
+                <Icon size={18} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-slate-800">
+          <div className="flex items-center gap-3 px-4 py-3 mb-2">
+            <div className="h-8 w-8 rounded-full bg-red-500 flex items-center justify-center font-bold">
+              A
+            </div>
+            <div>
+              <p className="text-sm font-medium">管理员</p>
+              <p className="text-xs text-slate-400">特殊权限账号</p>
+            </div>
+          </div>
+          <Link href="/login">
+            <Button variant="ghost" className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-950/30">
+              <LogOut className="mr-2 h-4 w-4" /> 退出管理
+            </Button>
+          </Link>
+        </div>
+      </aside>
+      {/* --- 左侧黑色侧边栏结束 --- */}
+
+      {/* --- 右侧主内容区域 --- */}
+      {/* ml-64 (margin-left: 16rem) 是为了给 fixed 的侧边栏留出位置 */}
+      <main className="flex-1 ml-64 p-8 overflow-y-auto min-h-screen">
+        <div className="max-w-6xl mx-auto space-y-6">
+          {/* 这里渲染的就是 page.tsx 的内容 */}
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/admin/orders/page.tsx">
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+
+export default function OrderManagement() {
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">订单仲裁</h1>
+      <p className="text-muted-foreground">查看所有交易记录，处理买卖双方纠纷。</p>
+
+      <div className="rounded-xl border bg-card shadow-sm">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-muted/50 border-b">
+            <tr>
+              <th className="px-6 py-4">订单ID</th>
+              <th className="px-6 py-4">商品</th>
+              <th className="px-6 py-4">买家</th>
+              <th className="px-6 py-4">卖家</th>
+              <th className="px-6 py-4">状态</th>
+              <th className="px-6 py-4 text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            <tr>
+              <td className="px-6 py-4 font-mono">ORD-2024-001</td>
+              <td className="px-6 py-4">AirPods Pro</td>
+              <td className="px-6 py-4">李同学</td>
+              <td className="px-6 py-4">王同学</td>
+              <td className="px-6 py-4"><Badge variant="outline" className="text-yellow-600 border-yellow-200 bg-yellow-50">纠纷中</Badge></td>
+              <td className="px-6 py-4 text-right">
+                <Button size="sm" variant="secondary">查看聊天记录</Button>
+                <Button size="sm" variant="destructive" className="ml-2">强制取消</Button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div className="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm border border-blue-100">
+        <strong>提示：</strong> 如果交易双方发生争议（例如商品描述不符），管理员可以调取该订单关联的聊天记录进行取证。
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/admin/page.tsx">
+"use client";
+
+import Link from "next/link";
+import { 
+  Users, 
+  Package, 
+  Flag, 
+  ShoppingBag, 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  Activity,
+  AlertCircle
+} from "lucide-react";
+
+// 模拟仪表盘数据
+const stats = [
+  { 
+    label: "总用户数", 
+    value: "2,543", 
+    change: "+12%", 
+    trend: "up", 
+    icon: Users, 
+    color: "text-blue-600", 
+    bg: "bg-blue-100" 
+  },
+  { 
+    label: "在线商品", 
+    value: "856", 
+    change: "+5%", 
+    trend: "up", 
+    icon: Package, 
+    color: "text-purple-600", 
+    bg: "bg-purple-100" 
+  },
+  { 
+    label: "待处理举报", 
+    value: "12", 
+    change: "+2", 
+    trend: "up", // 举报增加通常是坏事，用红色表示
+    icon: Flag, 
+    color: "text-red-600", 
+    bg: "bg-red-100" 
+  },
+  { 
+    label: "今日成交", 
+    value: "48", 
+    change: "-3%", 
+    trend: "down", 
+    icon: ShoppingBag, 
+    color: "text-green-600", 
+    bg: "bg-green-100" 
+  },
+];
+
+const recentActivities = [
+  { id: 1, user: "小明", action: "发布了新商品", target: "线性代数教材（同济版）", time: "5分钟前" },
+  { id: 2, user: "系统安全", action: "自动拦截了", target: "疑似广告帖", time: "12分钟前" },
+  { id: 3, user: "李华", action: "举报了用户", target: "Spammer_007", time: "30分钟前" },
+  { id: 4, user: "张伟", action: "完成了订单", target: "罗技 G304 鼠标", time: "1小时前" },
+  { id: 5, user: "王五", action: "注册了新账号", target: "", time: "2小时前" },
+];
+
+export default function AdminDashboardPage() {
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {/* 顶部欢迎语 */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">管理后台概览</h1>
+          <p className="text-muted-foreground">欢迎回来，管理员。这里是今日的平台数据概况。</p>
+        </div>
+        <div className="hidden md:block">
+           <span className="text-sm bg-muted px-3 py-1 rounded-full text-muted-foreground">
+             系统状态: 🟢 正常运行中
+           </span>
+        </div>
+      </div>
+
+      {/* 数据卡片网格 */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {stats.map((stat, index) => {
+          const Icon = stat.icon;
+          // 简单的逻辑判断趋势颜色
+          const isPositive = stat.trend === 'up';
+          const trendColor = stat.label === "待处理举报" 
+            ? (isPositive ? "text-red-600" : "text-green-600") // 举报增加是坏事
+            : (isPositive ? "text-green-600" : "text-red-600"); // 其他增加是好事
+
+          return (
+            <div key={index} className="p-6 bg-card rounded-xl border shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <h2 className="text-2xl font-bold">{stat.value}</h2>
+                  <span className={`text-xs font-medium flex items-center ${trendColor}`}>
+                    {stat.change}
+                    {stat.trend === 'up' ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                  </span>
+                </div>
+              </div>
+              <div className={`p-3 rounded-full ${stat.bg} ${stat.color}`}>
+                <Icon size={20} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        {/* 左侧：快捷操作与系统通知 */}
+        <div className="col-span-4 space-y-4">
+           {/* 待处理事项提醒 */}
+           <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex gap-3 items-start">
+              <AlertCircle className="text-red-600 shrink-0 mt-0.5" size={20} />
+              <div>
+                <h3 className="font-semibold text-red-900">需要关注</h3>
+                <p className="text-sm text-red-700 mt-1">
+                  目前有 <span className="font-bold">12</span> 条新的举报信息需要处理，其中 3 条被标记为“高风险诈骗”。
+                </p>
+                <Link href="/admin/reports">
+                  <button className="mt-2 text-xs font-semibold bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors">
+                    立即处理
+                  </button>
+                </Link>
+              </div>
+           </div>
+
+           {/* 趋势图表占位符 */}
+           <div className="bg-card rounded-xl border shadow-sm p-6 h-[300px] flex flex-col">
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <Activity size={18} />
+                流量趋势 (近7天)
+              </h3>
+              <div className="flex-1 bg-muted/20 rounded-lg flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed gap-2">
+                <Activity size={32} className="opacity-20" />
+                <span className="text-sm">图表组件区域</span>
+                <span className="text-xs opacity-50">(接入 Recharts 或 Chart.js 后显示)</span>
+              </div>
+           </div>
+        </div>
+
+        {/* 右侧：最新动态 Feed */}
+        <div className="col-span-3 bg-card rounded-xl border shadow-sm p-6 h-full">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-semibold">最新动态</h3>
+            <button className="text-xs text-blue-600 hover:underline">刷新</button>
+          </div>
+          <div className="relative border-l border-muted ml-2 space-y-6">
+            {recentActivities.map((activity) => (
+              <div key={activity.id} className="ml-6 relative">
+                <span className="absolute -left-[29px] top-1 h-3 w-3 rounded-full border-2 border-background bg-blue-500 ring-4 ring-background" />
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm">
+                    <span className="font-medium text-foreground">{activity.user}</span> 
+                    <span className="text-muted-foreground mx-1">{activity.action}</span> 
+                    <span className="font-medium text-foreground">{activity.target}</span>
+                  </p>
+                  <span className="text-xs text-muted-foreground">{activity.time}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/admin/reports/page.tsx">
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { AlertTriangle, CheckCircle, Clock } from "lucide-react";
+
+// Mock Data
+const reports = [
+  { id: 12, reporter: "小红", suspect: "User_X", item: "iPhone 14 Pro", reason: "诈骗：收钱不发货", status: "未处理", time: "10分钟前" },
+  { id: 11, reporter: "张三", suspect: "李四", item: "二手显卡", reason: "货不对板", status: "已处理", result: "下架商品", time: "2小时前" },
+];
+
+export default function ReportManagement() {
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-4 flex items-center gap-4 bg-red-50 border-red-100">
+          <div className="p-3 bg-red-100 rounded-full text-red-600"><AlertTriangle /></div>
+          <div>
+            <p className="text-sm text-muted-foreground">待处理举报</p>
+            <p className="text-2xl font-bold text-red-700">12</p>
+          </div>
+        </Card>
+      </div>
+
+      <h2 className="text-xl font-bold mt-8">举报列表</h2>
+      
+      <div className="grid gap-4">
+        {reports.map((report) => (
+          <div key={report.id} className="bg-card border rounded-xl p-5 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Badge variant={report.status === "未处理" ? "destructive" : "secondary"}>
+                  {report.status}
+                </Badge>
+                <span className="font-mono text-xs text-muted-foreground">ID: #{report.id}</span>
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Clock size={12} /> {report.time}
+                </span>
+              </div>
+              <h3 className="font-semibold text-lg">
+                举报对象：{report.item} <span className="text-muted-foreground font-normal">({report.suspect})</span>
+              </h3>
+              <p className="text-sm text-red-600 bg-red-50 px-2 py-1 rounded w-fit">
+                原因: {report.reason}
+              </p>
+              <p className="text-xs text-muted-foreground">举报人: {report.reporter}</p>
+            </div>
+
+            {report.status === "未处理" ? (
+              <div className="flex gap-2">
+                <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50">
+                  封禁用户
+                </Button>
+                <Button variant="outline">删除商品</Button>
+                <Button>标记已处理</Button>
+              </div>
+            ) : (
+               <div className="text-right">
+                  <p className="text-sm font-medium text-green-600 flex items-center gap-1">
+                    <CheckCircle size={14} /> 已完成
+                  </p>
+                  <p className="text-xs text-muted-foreground">处理动作: {report.result}</p>
+               </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Audit Log Section (Mock) */}
+      <div className="mt-12 pt-6 border-t">
+        <h3 className="text-lg font-bold mb-4">🛡️ 处理记录 (Audit Log)</h3>
+        <div className="bg-slate-900 text-slate-300 p-4 rounded-xl font-mono text-xs space-y-2">
+          <p><span className="text-slate-500">[2026-03-05 10:00]</span> Admin_01 banned user "Spammer" (Reason: Ad spam)</p>
+          <p><span className="text-slate-500">[2026-03-05 09:45]</span> Admin_02 deleted item #992 (Reason: Prohibited item)</p>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">
+          * 系统自动记录所有管理员操作，被封禁用户在登录时将看到具体的封禁原因 (reason字段)。
+        </p>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/admin/users/page.tsx">
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Table, Search, Ban, RotateCcw } from "lucide-react";
+
+// Mock Data
+const initialUsers = [
+  { id: "U001", name: "小明", email: "xiaoming@mail.sustech.edu.cn", score: 4.6, deals: 12, status: "正常" },
+  { id: "U002", name: "小红", email: "xiaohong@mail.sustech.edu.cn", score: 2.1, deals: 3, status: "警告" },
+  { id: "U003", name: "Spammer", email: "spam@fake.com", score: 0, deals: 0, status: "已封禁" },
+];
+
+export default function UserManagement() {
+  const [users, setUsers] = useState(initialUsers);
+
+  const toggleBan = (id: string) => {
+    setUsers(users.map(u => u.id === id ? { ...u, status: u.status === "已封禁" ? "正常" : "已封禁" } : u));
+  };
+
+  const resetScore = (id: string) => {
+    if(confirm("确定重置该用户信誉分吗？")) {
+        setUsers(users.map(u => u.id === id ? { ...u, score: 5.0 } : u));
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">用户管理</h1>
+          <p className="text-muted-foreground">管理平台注册用户、处理违规账号。</p>
+        </div>
+        <div className="relative w-72">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="搜索用户ID或邮箱..." className="pl-8" />
+        </div>
+      </div>
+
+      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-muted/50 text-muted-foreground font-medium border-b">
+            <tr>
+              <th className="px-6 py-4">用户ID</th>
+              <th className="px-6 py-4">邮箱</th>
+              <th className="px-6 py-4">信誉分</th>
+              <th className="px-6 py-4">交易次数</th>
+              <th className="px-6 py-4">状态</th>
+              <th className="px-6 py-4 text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {users.map((user) => (
+              <tr key={user.id} className="hover:bg-muted/50 transition-colors">
+                <td className="px-6 py-4 font-medium">{user.name} <span className="text-xs text-muted-foreground ml-1">({user.id})</span></td>
+                <td className="px-6 py-4">{user.email}</td>
+                <td className="px-6 py-4">
+                  <span className={`font-bold ${user.score < 3 ? "text-red-500" : "text-green-600"}`}>{user.score}</span>
+                </td>
+                <td className="px-6 py-4">{user.deals}</td>
+                <td className="px-6 py-4">
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium 
+                    ${user.status === '正常' ? 'bg-green-100 text-green-700' : 
+                      user.status === '已封禁' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                    {user.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-right space-x-2">
+                  <Button size="sm" variant="outline" onClick={() => resetScore(user.id)} title="重置信誉分">
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant={user.status === "已封禁" ? "default" : "destructive"}
+                    onClick={() => toggleBan(user.id)}
+                  >
+                    {user.status === "已封禁" ? "解封" : "封禁"}
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/chat/layout.tsx">
+import { AppShell } from "@/components/layout/app-shell";
+import type { ReactNode } from "react";
+
+export default function ChatLayout({ children }: { children: ReactNode }) {
+  return <AppShell>{children}</AppShell>;
+}
+</file>
+
+<file path="src/app/map/layout.tsx">
+import { AppShell } from "@/components/layout/app-shell";
+import type { ReactNode } from "react";
+
+export default function MapLayout({ children }: { children: ReactNode }) {
+  return <AppShell>{children}</AppShell>;
+}
+</file>
+
+<file path="src/app/marketplace/layout.tsx">
+import { AppShell } from "@/components/layout/app-shell";
+import type { ReactNode } from "react";
+
+export default function MarketplaceLayout({ children }: { children: ReactNode }) {
+  return <AppShell>{children}</AppShell>;
+}
+</file>
+
+<file path="src/app/profile/layout.tsx">
+import { AppShell } from "@/components/layout/app-shell";
+import type { ReactNode } from "react";
+
+export default function ProfileLayout({ children }: { children: ReactNode }) {
+  return <AppShell>{children}</AppShell>;
+}
+</file>
+
+<file path="src/app/types/index.ts">
+// src/types/index.ts
+
+// 1. 用户与信任实体
+export interface User {
+  id: string;
+  username: string;
+  avatar: string;
+  isStudentVerified: boolean; // EDU 邮箱认证
+  trustScore: number;         // 信誉分 (0-5.0)
+  college: string;            // 学院
+}
+
+// 2. 商品/技能 混合实体
+export type ItemType = 'goods' | 'skill' | 'lost-found';
+
+export interface MarketItem {
+  id: string;
+  type: ItemType;
+  title: string;
+  price: number;              // 对应 技能则是 "0" 或 估值
+  exchangeTarget?: string;    // 技能交换目标，例如 "吉他教学"
+  timeDuration?: string;      // 技能时长，例如 "1小时"
+  seller: User;
+  tags: string[];
+  status: 'active' | 'sold';
+  location: string;           // 关联地图地点 ID
+  aiMatchScore?: number;      // 智能匹配度 (前端展示用)
+}
+
+// 3. 地图点实体
+export interface MapSpot {
+  id: number;
+  name: string;
+  type: 'trade' | 'lost' | 'facility'; // 交易点 | 失物 | 设施
+  coordinates: { x: number; y: number };
+}
+</file>
+
+<file path="src/components/layout/app-shell.tsx">
+"use client";
+
+import type { ReactNode } from "react";
+import { Sidebar } from "./sidebar";
+import { MobileNav } from "./mobile-nav";
+
+export function AppShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex h-screen">
+      <Sidebar />
+      <main className="flex-1 overflow-y-auto pb-16 md:pb-0">{children}</main>
+      <MobileNav />
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/layout/mobile-nav.tsx">
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+
+const navItems = [
+  { href: "/marketplace", label: "市场", icon: "🏪" },
+  { href: "/chat", label: "聊天", icon: "💬" },
+  { href: "/map", label: "地图", icon: "🗺️" },
+  { href: "/profile", label: "我的", icon: "👤" },
+];
+
+export function MobileNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t bg-background md:hidden">
+      {navItems.map((item) => (
+        <Link
+          key={item.href}
+          href={item.href}
+          className={cn(
+            "flex flex-1 flex-col items-center gap-1 py-2 text-xs transition-colors",
+            pathname.startsWith(item.href)
+              ? "text-primary"
+              : "text-muted-foreground"
+          )}
+        >
+          <span className="text-lg">{item.icon}</span>
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+</file>
+
+<file path="src/components/layout/sidebar.tsx">
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+
+const navItems = [
+  { href: "/marketplace", label: "市场", icon: "🏪" },
+  { href: "/chat", label: "聊天", icon: "💬" },
+  { href: "/map", label: "地图", icon: "🗺️" },
+  { href: "/profile", label: "我的", icon: "👤" },
+];
+
+export function Sidebar() {
+  const pathname = usePathname();
+
+  return (
+    <aside className="hidden md:flex md:w-60 md:flex-col md:border-r md:bg-card">
+      <div className="flex h-14 items-center border-b px-4">
+        <Link href="/" className="text-lg font-bold">
+          SUSTech Market
+        </Link>
+      </div>
+      <nav className="flex flex-1 flex-col gap-1 p-2">
+        {navItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent",
+              pathname.startsWith(item.href)
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground"
+            )}
+          >
+            <span>{item.icon}</span>
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+    </aside>
+  );
+}
+</file>
+
+<file path="src/components/providers/query-provider.tsx">
+"use client";
+
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState, type ReactNode } from "react";
+
+export function QueryProvider({ children }: { children: ReactNode }) {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 60 * 1000,
+            refetchOnWindowFocus: false,
+          },
+        },
+      })
+  );
+
+  return (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+</file>
+
+<file path="src/components/ui/avatar.tsx">
+"use client"
+
+import * as React from "react"
+import { Avatar as AvatarPrimitive } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+
+function Avatar({
+  className,
+  size = "default",
+  ...props
+}: React.ComponentProps<typeof AvatarPrimitive.Root> & {
+  size?: "default" | "sm" | "lg"
+}) {
+  return (
+    <AvatarPrimitive.Root
+      data-slot="avatar"
+      data-size={size}
+      className={cn(
+        "group/avatar relative flex size-8 shrink-0 overflow-hidden rounded-full select-none data-[size=lg]:size-10 data-[size=sm]:size-6",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function AvatarImage({
+  className,
+  ...props
+}: React.ComponentProps<typeof AvatarPrimitive.Image>) {
+  return (
+    <AvatarPrimitive.Image
+      data-slot="avatar-image"
+      className={cn("aspect-square size-full", className)}
+      {...props}
+    />
+  )
+}
+
+function AvatarFallback({
+  className,
+  ...props
+}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+  return (
+    <AvatarPrimitive.Fallback
+      data-slot="avatar-fallback"
+      className={cn(
+        "bg-muted text-muted-foreground flex size-full items-center justify-center rounded-full text-sm group-data-[size=sm]/avatar:text-xs",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function AvatarBadge({ className, ...props }: React.ComponentProps<"span">) {
+  return (
+    <span
+      data-slot="avatar-badge"
+      className={cn(
+        "bg-primary text-primary-foreground ring-background absolute right-0 bottom-0 z-10 inline-flex items-center justify-center rounded-full ring-2 select-none",
+        "group-data-[size=sm]/avatar:size-2 group-data-[size=sm]/avatar:[&>svg]:hidden",
+        "group-data-[size=default]/avatar:size-2.5 group-data-[size=default]/avatar:[&>svg]:size-2",
+        "group-data-[size=lg]/avatar:size-3 group-data-[size=lg]/avatar:[&>svg]:size-2",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="avatar-group"
+      className={cn(
+        "*:data-[slot=avatar]:ring-background group/avatar-group flex -space-x-2 *:data-[slot=avatar]:ring-2",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function AvatarGroupCount({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="avatar-group-count"
+      className={cn(
+        "bg-muted text-muted-foreground ring-background relative flex size-8 shrink-0 items-center justify-center rounded-full text-sm ring-2 group-has-data-[size=lg]/avatar-group:size-10 group-has-data-[size=sm]/avatar-group:size-6 [&>svg]:size-4 group-has-data-[size=lg]/avatar-group:[&>svg]:size-5 group-has-data-[size=sm]/avatar-group:[&>svg]:size-3",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  AvatarBadge,
+  AvatarGroup,
+  AvatarGroupCount,
+}
+</file>
+
+<file path="src/components/ui/badge.tsx">
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+import { Slot } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+
+const badgeVariants = cva(
+  "inline-flex items-center justify-center rounded-full border border-transparent px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
+        secondary:
+          "bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
+        destructive:
+          "bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+        outline:
+          "border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+        ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 [a&]:hover:underline",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+function Badge({
+  className,
+  variant = "default",
+  asChild = false,
+  ...props
+}: React.ComponentProps<"span"> &
+  VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
+  const Comp = asChild ? Slot.Root : "span"
+
+  return (
+    <Comp
+      data-slot="badge"
+      data-variant={variant}
+      className={cn(badgeVariants({ variant }), className)}
+      {...props}
+    />
+  )
+}
+
+export { Badge, badgeVariants }
+</file>
+
+<file path="src/components/ui/button.tsx">
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+import { Slot } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+        outline:
+          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost:
+          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-9 px-4 py-2 has-[>svg]:px-3",
+        xs: "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
+        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
+        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
+        icon: "size-9",
+        "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
+        "icon-sm": "size-8",
+        "icon-lg": "size-10",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+function Button({
+  className,
+  variant = "default",
+  size = "default",
+  asChild = false,
+  ...props
+}: React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean
+  }) {
+  const Comp = asChild ? Slot.Root : "button"
+
+  return (
+    <Comp
+      data-slot="button"
+      data-variant={variant}
+      data-size={size}
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  )
+}
+
+export { Button, buttonVariants }
+</file>
+
+<file path="src/components/ui/card.tsx">
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+function Card({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card"
+      className={cn(
+        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-header"
+      className={cn(
+        "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-2 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-title"
+      className={cn("leading-none font-semibold", className)}
+      {...props}
+    />
+  )
+}
+
+function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-description"
+      className={cn("text-muted-foreground text-sm", className)}
+      {...props}
+    />
+  )
+}
+
+function CardAction({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-action"
+      className={cn(
+        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardContent({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-content"
+      className={cn("px-6", className)}
+      {...props}
+    />
+  )
+}
+
+function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-footer"
+      className={cn("flex items-center px-6 [.border-t]:pt-6", className)}
+      {...props}
+    />
+  )
+}
+
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardAction,
+  CardDescription,
+  CardContent,
+}
+</file>
+
+<file path="src/components/ui/dialog.tsx">
+"use client"
+
+import * as React from "react"
+import { XIcon } from "lucide-react"
+import { Dialog as DialogPrimitive } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+
+function Dialog({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+}
+
+function DialogTrigger({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
+  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
+}
+
+function DialogPortal({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+}
+
+function DialogClose({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Close>) {
+  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
+}
+
+function DialogOverlay({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+  return (
+    <DialogPrimitive.Overlay
+      data-slot="dialog-overlay"
+      className={cn(
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function DialogContent({
+  className,
+  children,
+  showCloseButton = true,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+  showCloseButton?: boolean
+}) {
+  return (
+    <DialogPortal data-slot="dialog-portal">
+      <DialogOverlay />
+      <DialogPrimitive.Content
+        data-slot="dialog-content"
+        className={cn(
+          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 outline-none sm:max-w-lg",
+          className
+        )}
+        {...props}
+      >
+        {children}
+        {showCloseButton && (
+          <DialogPrimitive.Close
+            data-slot="dialog-close"
+            className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+          >
+            <XIcon />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
+        )}
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  )
+}
+
+function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dialog-header"
+      className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
+      {...props}
+    />
+  )
+}
+
+function DialogFooter({
+  className,
+  showCloseButton = false,
+  children,
+  ...props
+}: React.ComponentProps<"div"> & {
+  showCloseButton?: boolean
+}) {
+  return (
+    <div
+      data-slot="dialog-footer"
+      className={cn(
+        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      {showCloseButton && (
+        <DialogPrimitive.Close asChild>
+          <Button variant="outline">Close</Button>
+        </DialogPrimitive.Close>
+      )}
+    </div>
+  )
+}
+
+function DialogTitle({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Title>) {
+  return (
+    <DialogPrimitive.Title
+      data-slot="dialog-title"
+      className={cn("text-lg leading-none font-semibold", className)}
+      {...props}
+    />
+  )
+}
+
+function DialogDescription({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Description>) {
+  return (
+    <DialogPrimitive.Description
+      data-slot="dialog-description"
+      className={cn("text-muted-foreground text-sm", className)}
+      {...props}
+    />
+  )
+}
+
+export {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+  DialogTrigger,
+}
+</file>
+
+<file path="src/components/ui/dropdown-menu.tsx">
+"use client"
+
+import * as React from "react"
+import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"
+import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+
+function DropdownMenu({
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
+  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />
+}
+
+function DropdownMenuPortal({
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Portal>) {
+  return (
+    <DropdownMenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />
+  )
+}
+
+function DropdownMenuTrigger({
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Trigger>) {
+  return (
+    <DropdownMenuPrimitive.Trigger
+      data-slot="dropdown-menu-trigger"
+      {...props}
+    />
+  )
+}
+
+function DropdownMenuContent({
+  className,
+  sideOffset = 4,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+  return (
+    <DropdownMenuPrimitive.Portal>
+      <DropdownMenuPrimitive.Content
+        data-slot="dropdown-menu-content"
+        sideOffset={sideOffset}
+        className={cn(
+          "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border p-1 shadow-md",
+          className
+        )}
+        {...props}
+      />
+    </DropdownMenuPrimitive.Portal>
+  )
+}
+
+function DropdownMenuGroup({
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Group>) {
+  return (
+    <DropdownMenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />
+  )
+}
+
+function DropdownMenuItem({
+  className,
+  inset,
+  variant = "default",
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Item> & {
+  inset?: boolean
+  variant?: "default" | "destructive"
+}) {
+  return (
+    <DropdownMenuPrimitive.Item
+      data-slot="dropdown-menu-item"
+      data-inset={inset}
+      data-variant={variant}
+      className={cn(
+        "focus:bg-accent focus:text-accent-foreground data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 dark:data-[variant=destructive]:focus:bg-destructive/20 data-[variant=destructive]:focus:text-destructive data-[variant=destructive]:*:[svg]:!text-destructive [&_svg:not([class*='text-'])]:text-muted-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[inset]:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function DropdownMenuCheckboxItem({
+  className,
+  children,
+  checked,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>) {
+  return (
+    <DropdownMenuPrimitive.CheckboxItem
+      data-slot="dropdown-menu-checkbox-item"
+      className={cn(
+        "focus:bg-accent focus:text-accent-foreground relative flex cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        className
+      )}
+      checked={checked}
+      {...props}
+    >
+      <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">
+        <DropdownMenuPrimitive.ItemIndicator>
+          <CheckIcon className="size-4" />
+        </DropdownMenuPrimitive.ItemIndicator>
+      </span>
+      {children}
+    </DropdownMenuPrimitive.CheckboxItem>
+  )
+}
+
+function DropdownMenuRadioGroup({
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.RadioGroup>) {
+  return (
+    <DropdownMenuPrimitive.RadioGroup
+      data-slot="dropdown-menu-radio-group"
+      {...props}
+    />
+  )
+}
+
+function DropdownMenuRadioItem({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.RadioItem>) {
+  return (
+    <DropdownMenuPrimitive.RadioItem
+      data-slot="dropdown-menu-radio-item"
+      className={cn(
+        "focus:bg-accent focus:text-accent-foreground relative flex cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        className
+      )}
+      {...props}
+    >
+      <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">
+        <DropdownMenuPrimitive.ItemIndicator>
+          <CircleIcon className="size-2 fill-current" />
+        </DropdownMenuPrimitive.ItemIndicator>
+      </span>
+      {children}
+    </DropdownMenuPrimitive.RadioItem>
+  )
+}
+
+function DropdownMenuLabel({
+  className,
+  inset,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Label> & {
+  inset?: boolean
+}) {
+  return (
+    <DropdownMenuPrimitive.Label
+      data-slot="dropdown-menu-label"
+      data-inset={inset}
+      className={cn(
+        "px-2 py-1.5 text-sm font-medium data-[inset]:pl-8",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function DropdownMenuSeparator({
+  className,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Separator>) {
+  return (
+    <DropdownMenuPrimitive.Separator
+      data-slot="dropdown-menu-separator"
+      className={cn("bg-border -mx-1 my-1 h-px", className)}
+      {...props}
+    />
+  )
+}
+
+function DropdownMenuShortcut({
+  className,
+  ...props
+}: React.ComponentProps<"span">) {
+  return (
+    <span
+      data-slot="dropdown-menu-shortcut"
+      className={cn(
+        "text-muted-foreground ml-auto text-xs tracking-widest",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function DropdownMenuSub({
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>) {
+  return <DropdownMenuPrimitive.Sub data-slot="dropdown-menu-sub" {...props} />
+}
+
+function DropdownMenuSubTrigger({
+  className,
+  inset,
+  children,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.SubTrigger> & {
+  inset?: boolean
+}) {
+  return (
+    <DropdownMenuPrimitive.SubTrigger
+      data-slot="dropdown-menu-sub-trigger"
+      data-inset={inset}
+      className={cn(
+        "focus:bg-accent focus:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[inset]:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      <ChevronRightIcon className="ml-auto size-4" />
+    </DropdownMenuPrimitive.SubTrigger>
+  )
+}
+
+function DropdownMenuSubContent({
+  className,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
+  return (
+    <DropdownMenuPrimitive.SubContent
+      data-slot="dropdown-menu-sub-content"
+      className={cn(
+        "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-hidden rounded-md border p-1 shadow-lg",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export {
+  DropdownMenu,
+  DropdownMenuPortal,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+}
+</file>
+
+<file path="src/components/ui/input.tsx">
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+  return (
+    <input
+      type={type}
+      data-slot="input"
+      className={cn(
+        "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+        "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Input }
+</file>
+
+<file path="src/components/ui/sonner.tsx">
+"use client"
+
+import {
+  CircleCheckIcon,
+  InfoIcon,
+  Loader2Icon,
+  OctagonXIcon,
+  TriangleAlertIcon,
+} from "lucide-react"
+import { useTheme } from "next-themes"
+import { Toaster as Sonner, type ToasterProps } from "sonner"
+
+const Toaster = ({ ...props }: ToasterProps) => {
+  const { theme = "system" } = useTheme()
+
+  return (
+    <Sonner
+      theme={theme as ToasterProps["theme"]}
+      className="toaster group"
+      icons={{
+        success: <CircleCheckIcon className="size-4" />,
+        info: <InfoIcon className="size-4" />,
+        warning: <TriangleAlertIcon className="size-4" />,
+        error: <OctagonXIcon className="size-4" />,
+        loading: <Loader2Icon className="size-4 animate-spin" />,
+      }}
+      style={
+        {
+          "--normal-bg": "var(--popover)",
+          "--normal-text": "var(--popover-foreground)",
+          "--normal-border": "var(--border)",
+          "--border-radius": "var(--radius)",
+        } as React.CSSProperties
+      }
+      {...props}
+    />
+  )
+}
+
+export { Toaster }
+</file>
+
+<file path="src/components/ui/tabs.tsx">
+"use client"
+
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+import { Tabs as TabsPrimitive } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+
+function Tabs({
+  className,
+  orientation = "horizontal",
+  ...props
+}: React.ComponentProps<typeof TabsPrimitive.Root>) {
+  return (
+    <TabsPrimitive.Root
+      data-slot="tabs"
+      data-orientation={orientation}
+      orientation={orientation}
+      className={cn(
+        "group/tabs flex gap-2 data-[orientation=horizontal]:flex-col",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+const tabsListVariants = cva(
+  "rounded-lg p-[3px] group-data-[orientation=horizontal]/tabs:h-9 data-[variant=line]:rounded-none group/tabs-list text-muted-foreground inline-flex w-fit items-center justify-center group-data-[orientation=vertical]/tabs:h-fit group-data-[orientation=vertical]/tabs:flex-col",
+  {
+    variants: {
+      variant: {
+        default: "bg-muted",
+        line: "gap-1 bg-transparent",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+function TabsList({
+  className,
+  variant = "default",
+  ...props
+}: React.ComponentProps<typeof TabsPrimitive.List> &
+  VariantProps<typeof tabsListVariants>) {
+  return (
+    <TabsPrimitive.List
+      data-slot="tabs-list"
+      data-variant={variant}
+      className={cn(tabsListVariants({ variant }), className)}
+      {...props}
+    />
+  )
+}
+
+function TabsTrigger({
+  className,
+  ...props
+}: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
+  return (
+    <TabsPrimitive.Trigger
+      data-slot="tabs-trigger"
+      className={cn(
+        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring text-foreground/60 hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-all group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 group-data-[variant=default]/tabs-list:data-[state=active]:shadow-sm group-data-[variant=line]/tabs-list:data-[state=active]:shadow-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent dark:group-data-[variant=line]/tabs-list:data-[state=active]:border-transparent dark:group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent",
+        "data-[state=active]:bg-background dark:data-[state=active]:text-foreground dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 data-[state=active]:text-foreground",
+        "after:bg-foreground after:absolute after:opacity-0 after:transition-opacity group-data-[orientation=horizontal]/tabs:after:inset-x-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:h-0.5 group-data-[orientation=vertical]/tabs:after:inset-y-0 group-data-[orientation=vertical]/tabs:after:-right-1 group-data-[orientation=vertical]/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function TabsContent({
+  className,
+  ...props
+}: React.ComponentProps<typeof TabsPrimitive.Content>) {
+  return (
+    <TabsPrimitive.Content
+      data-slot="tabs-content"
+      className={cn("flex-1 outline-none", className)}
+      {...props}
+    />
+  )
+}
+
+export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants }
+</file>
+
+<file path="src/hooks/use-media-query.ts">
+"use client";
+
+import { useEffect, useState } from "react";
+
+export function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    setMatches(media.matches);
+
+    const listener = (event: MediaQueryListEvent) => setMatches(event.matches);
+    media.addEventListener("change", listener);
+    return () => media.removeEventListener("change", listener);
+  }, [query]);
+
+  return matches;
+}
+
+export function useIsMobile() {
+  return useMediaQuery("(max-width: 768px)");
+}
+</file>
+
+<file path="src/lib/api-client.ts">
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
+
+interface RequestOptions extends RequestInit {
+  params?: Record<string, string>;
+}
+
+class ApiClient {
+  private baseURL: string;
+
+  constructor(baseURL: string) {
+    this.baseURL = baseURL;
+  }
+
+  private async request<T>(
+    endpoint: string,
+    options: RequestOptions = {}
+  ): Promise<T> {
+    const { params, headers, ...rest } = options;
+
+    let url = `${this.baseURL}${endpoint}`;
+    if (params) {
+      const searchParams = new URLSearchParams(params);
+      url += `?${searchParams.toString()}`;
+    }
+
+    const token =
+      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+    const response = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+      ...rest,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({}));
+      throw new ApiError(response.status, error.message ?? "Request failed");
+    }
+
+    return response.json();
+  }
+
+  get<T>(endpoint: string, options?: RequestOptions) {
+    return this.request<T>(endpoint, { ...options, method: "GET" });
+  }
+
+  post<T>(endpoint: string, data?: unknown, options?: RequestOptions) {
+    return this.request<T>(endpoint, {
+      ...options,
+      method: "POST",
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  put<T>(endpoint: string, data?: unknown, options?: RequestOptions) {
+    return this.request<T>(endpoint, {
+      ...options,
+      method: "PUT",
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  }
+
+  delete<T>(endpoint: string, options?: RequestOptions) {
+    return this.request<T>(endpoint, { ...options, method: "DELETE" });
+  }
+}
+
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export const apiClient = new ApiClient(API_BASE_URL);
+</file>
+
+<file path="src/lib/socket.ts">
+import { io, Socket } from "socket.io-client";
+
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ?? "http://localhost:5000";
+
+let socket: Socket | null = null;
+
+export function getSocket(): Socket {
+  if (!socket) {
+    socket = io(SOCKET_URL, {
+      autoConnect: false,
+      transports: ["websocket", "polling"],
+    });
+  }
+  return socket;
+}
+
+export function connectSocket(token?: string) {
+  const s = getSocket();
+  if (token) {
+    s.auth = { token };
+  }
+  s.connect();
+  return s;
+}
+
+export function disconnectSocket() {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
+}
+</file>
+
+<file path="src/lib/utils.ts">
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+</file>
+
+<file path="src/stores/auth-store.ts">
+import { create } from "zustand";
+
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  avatar?: string;
+}
+
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  setAuth: (user: User, token: string) => void;
+  logout: () => void;
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  token: typeof window !== "undefined" ? localStorage.getItem("token") : null,
+  isAuthenticated: false,
+
+  setAuth: (user, token) => {
+    localStorage.setItem("token", token);
+    set({ user, token, isAuthenticated: true });
+  },
+
+  logout: () => {
+    localStorage.removeItem("token");
+    set({ user: null, token: null, isAuthenticated: false });
+  },
+}));
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
+}
+</file>
+
+<file path="next.config.ts">
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+        destination: "http://localhost:5000/api/:path*",
+      },
+    ];
+  },
+};
+
+export default nextConfig;
+</file>
+
+<file path="package.json">
+{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "generate-api": "openapi --input http://localhost:5000/openapi.json --output src/api --client fetch"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@tanstack/react-query": "^5.90.21",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.575.0",
+    "next": "16.1.6",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.4.3",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-hook-form": "^7.71.2",
+    "react-leaflet": "^5.0.0",
+    "socket.io-client": "^4.8.3",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.5.0",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/leaflet": "^1.9.21",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "openapi-typescript-codegen": "^0.30.0",
+    "shadcn": "^3.8.5",
+    "tailwindcss": "^4",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "^5"
+  }
+}
+</file>
+
+<file path="src/app/(auth)/register/page.tsx">
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+export default function RegisterPage() {
+  const router = useRouter();
+  const [form, setForm] = useState({
+    username: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+
+  function validate() {
+    const errs: Record<string, string> = {};
+    if (!form.username) errs.username = "请输入用户名";
+    else if (form.username.length < 2) errs.username = "用户名至少 2 个字符";
+    if (!form.email) errs.email = "请输入邮箱";
+    else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = "邮箱格式不正确";
+    if (!form.password) errs.password = "请输入密码";
+    else if (form.password.length < 6) errs.password = "密码至少 6 位";
+    if (!form.confirmPassword) errs.confirmPassword = "请确认密码";
+    else if (form.password !== form.confirmPassword) errs.confirmPassword = "两次密码不一致";
+    return errs;
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
+    setErrors({});
+    setLoading(true);
+    await new Promise((r) => setTimeout(r, 1000));
+    setLoading(false);
+    router.push("/marketplace");
+  }
+
+  const fields = [
+    {
+      key: "username",
+      label: "用户名",
+      type: "text",
+      placeholder: "给自己起个名字",
+    },
+    {
+      key: "email",
+      label: "邮箱",
+      type: "email",
+      placeholder: "your@mail.sustech.edu.cn",
+    },
+    {
+      key: "password",
+      label: "密码",
+      type: "password",
+      placeholder: "至少 6 位",
+    },
+    {
+      key: "confirmPassword",
+      label: "确认密码",
+      type: "password",
+      placeholder: "再输入一次",
+    },
+  ] as const;
+
+  const passwordStrength = (() => {
+    const p = form.password;
+    if (!p) return null;
+    if (p.length < 6) return { label: "太短", color: "bg-red-400", width: "w-1/4" };
+    if (p.length < 8) return { label: "一般", color: "bg-yellow-400", width: "w-2/4" };
+    if (/[A-Z]/.test(p) && /[0-9]/.test(p)) return { label: "强", color: "bg-green-500", width: "w-full" };
+    return { label: "中等", color: "bg-blue-400", width: "w-3/4" };
+  })();
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4">
+      <div className="w-full max-w-sm">
+        {/* Logo area */}
+        <div className="text-center mb-8">
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-2xl font-bold shadow-lg mb-4">
+            市
+          </div>
+          <h1 className="text-2xl font-bold">SUSTech Market</h1>
+          <p className="text-muted-foreground text-sm mt-1">南科大校园社交交易平台</p>
+        </div>
+
+        {/* Form card */}
+        <div className="bg-card border rounded-3xl p-6 shadow-sm space-y-5">
+          <div className="space-y-1">
+            <h2 className="font-bold text-lg">创建账号</h2>
+            <p className="text-sm text-muted-foreground">加入南科大校园交易圈</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {fields.map(({ key, label, type, placeholder }) => (
+              <div key={key} className="space-y-1.5">
+                <label className="text-sm font-medium" htmlFor={key}>
+                  {label}
+                </label>
+                <input
+                  id={key}
+                  type={type}
+                  placeholder={placeholder}
+                  value={form[key]}
+                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                  className={`w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/30 ${
+                    errors[key] ? "border-destructive ring-2 ring-destructive/20" : ""
+                  }`}
+                />
+                {/* Password strength indicator */}
+                {key === "password" && passwordStrength && (
+                  <div className="space-y-1">
+                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                      <div className={`h-full rounded-full transition-all duration-300 ${passwordStrength.color} ${passwordStrength.width}`} />
+                    </div>
+                    <p className="text-xs text-muted-foreground">密码强度：{passwordStrength.label}</p>
+                  </div>
+                )}
+                {errors[key] && (
+                  <p className="text-xs text-destructive">{errors[key]}</p>
+                )}
+              </div>
+            ))}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  注册中...
+                </span>
+              ) : (
+                "注册"
+              )}
+            </button>
+          </form>
+
+          <p className="text-center text-sm text-muted-foreground">
+            已有账号？{" "}
+            <Link href="/login" className="font-semibold text-primary hover:underline">
+              立即登录
+            </Link>
+          </p>
+        </div>
+
+        <p className="text-center text-xs text-muted-foreground mt-6">
+          注册即表示你同意我们的服务条款和隐私政策
+        </p>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/chat/page.tsx">
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+import { cn } from "@/lib/utils";
+
+interface Message {
+  id: number;
+  content: string;
+  sender: "me" | "other";
+  time: string;
+}
+
+interface Conversation {
+  id: number;
+  user: string;
+  initials: string;
+  item: string;
+  lastMessage: string;
+  time: string;
+  unread: number;
+  color: string;
+  messages: Message[];
+}
+
+const mockConversations: Conversation[] = [
+  {
+    id: 1,
+    user: "张同学",
+    initials: "张",
+    item: "机械键盘（青轴）",
+    lastMessage: "那个键盘还在吗？",
+    time: "10:23",
+    unread: 2,
+    color: "from-blue-400 to-blue-600",
+    messages: [
+      { id: 1, content: "你好，那个机械键盘还在卖吗？", sender: "other", time: "10:20" },
+      { id: 2, content: "在的！你什么时候方便过来看看？", sender: "me", time: "10:21" },
+      { id: 3, content: "那个键盘还在吗？能便宜一点吗", sender: "other", time: "10:23" },
+    ],
+  },
+  {
+    id: 2,
+    user: "李同学",
+    initials: "李",
+    item: "AirPods Pro 二代",
+    lastMessage: "好的，明天图书馆门口见！",
+    time: "昨天",
+    unread: 0,
+    color: "from-slate-400 to-slate-600",
+    messages: [
+      { id: 1, content: "AirPods Pro还有吗，1200能接受", sender: "other", time: "昨天 14:00" },
+      { id: 2, content: "可以，成色很好的，电量也还不错", sender: "me", time: "昨天 14:05" },
+      { id: 3, content: "好的，明天在哪里交易方便？", sender: "other", time: "昨天 14:10" },
+      { id: 4, content: "好的，明天图书馆门口见！", sender: "me", time: "昨天 14:12" },
+    ],
+  },
+  {
+    id: 3,
+    user: "王同学",
+    initials: "王",
+    item: "高数教材",
+    lastMessage: "谢谢！收到了，非常满意",
+    time: "周一",
+    unread: 0,
+    color: "from-amber-400 to-orange-500",
+    messages: [
+      { id: 1, content: "高数书还有吗", sender: "other", time: "周一 09:00" },
+      { id: 2, content: "还有一本，25元", sender: "me", time: "周一 09:10" },
+      { id: 3, content: "好的，荔园楼下可以吗", sender: "other", time: "周一 09:15" },
+      { id: 4, content: "可以，下午三点见", sender: "me", time: "周一 09:16" },
+      { id: 5, content: "谢谢！收到了，非常满意", sender: "other", time: "周一 15:20" },
+    ],
+  },
+  {
+    id: 4,
+    user: "陈同学",
+    initials: "陈",
+    item: "Nike跑鞋 42码",
+    lastMessage: "发图片看看？",
+    time: "周日",
+    unread: 1,
+    color: "from-red-400 to-rose-600",
+    messages: [
+      { id: 1, content: "那双Nike跑鞋是42码的吗", sender: "other", time: "周日 16:00" },
+      { id: 2, content: "对的，标准42码", sender: "me", time: "周日 16:05" },
+      { id: 3, content: "发图片看看？", sender: "other", time: "周日 16:06" },
+    ],
+  },
+];
+
+export default function ChatPage() {
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [showThread, setShowThread] = useState(false); // mobile: show thread panel
+  const [inputValue, setInputValue] = useState("");
+  const [conversations, setConversations] = useState(mockConversations);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const selected = conversations.find((c) => c.id === selectedId) ?? null;
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [selected?.messages.length]);
+
+  function handleSelect(conv: Conversation) {
+    setSelectedId(conv.id);
+    setShowThread(true);
+    // clear unread
+    setConversations((prev) =>
+      prev.map((c) => (c.id === conv.id ? { ...c, unread: 0 } : c))
+    );
+  }
+
+  function handleSend() {
+    if (!inputValue.trim() || !selectedId) return;
+    const now = new Date();
+    const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
+    const newMsg: Message = {
+      id: Date.now(),
+      content: inputValue.trim(),
+      sender: "me",
+      time: timeStr,
+    };
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === selectedId
+          ? { ...c, messages: [...c.messages, newMsg], lastMessage: inputValue.trim(), time: timeStr }
+          : c
+      )
+    );
+    setInputValue("");
+  }
+
+  return (
+    <div className="flex h-full overflow-hidden">
+      {/* Conversation list */}
+      <div
+        className={cn(
+          "flex flex-col border-r bg-background w-full md:w-80 shrink-0",
+          showThread ? "hidden md:flex" : "flex"
+        )}
+      >
+        <div className="px-4 py-3 border-b">
+          <h1 className="font-bold text-lg">消息</h1>
+        </div>
+
+        {conversations.length === 0 ? (
+          <div className="flex flex-col items-center justify-center flex-1 gap-3 text-muted-foreground py-12">
+            <span className="text-5xl">💬</span>
+            <p className="text-sm">暂无消息</p>
+          </div>
+        ) : (
+          <div className="overflow-y-auto flex-1">
+            {conversations.map((conv) => (
+              <button
+                key={conv.id}
+                onClick={() => handleSelect(conv)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60",
+                  selectedId === conv.id && "bg-muted"
+                )}
+              >
+                {/* Avatar */}
+                <div className={`h-12 w-12 shrink-0 rounded-full bg-gradient-to-br ${conv.color} flex items-center justify-center text-white font-bold text-base relative`}>
+                  {conv.initials}
+                  {conv.unread > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 h-5 w-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center font-bold">
+                      {conv.unread}
+                    </span>
+                  )}
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="font-semibold text-sm">{conv.user}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">{conv.time}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">{conv.item}</p>
+                  <p className={cn("text-sm truncate mt-0.5", conv.unread > 0 ? "font-medium" : "text-muted-foreground")}>
+                    {conv.lastMessage}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Message thread */}
+      <div
+        className={cn(
+          "flex flex-col flex-1 bg-background",
+          !showThread ? "hidden md:flex" : "flex"
+        )}
+      >
+        {selected ? (
+          <>
+            {/* Thread header */}
+            <div className="flex items-center gap-3 px-4 py-3 border-b bg-background/95 backdrop-blur-sm">
+              <button
+                className="md:hidden rounded-full p-1.5 hover:bg-muted transition-colors text-lg leading-none"
+                onClick={() => setShowThread(false)}
+              >
+                ←
+              </button>
+              <div className={`h-9 w-9 rounded-full bg-gradient-to-br ${selected.color} flex items-center justify-center text-white font-bold text-sm`}>
+                {selected.initials}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-sm">{selected.user}</p>
+                <p className="text-xs text-muted-foreground truncate">{selected.item}</p>
+              </div>
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+              {selected.messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={cn("flex", msg.sender === "me" ? "justify-end" : "justify-start")}
+                >
+                  <div className="max-w-[72%] space-y-1">
+                    <div
+                      className={cn(
+                        "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+                        msg.sender === "me"
+                          ? "bg-primary text-primary-foreground rounded-tr-sm"
+                          : "bg-muted rounded-tl-sm"
+                      )}
+                    >
+                      {msg.content}
+                    </div>
+                    <p className={cn("text-[10px] text-muted-foreground", msg.sender === "me" ? "text-right" : "text-left")}>
+                      {msg.time}
+                    </p>
+                  </div>
+                </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input */}
+            <div className="border-t px-4 py-3 flex gap-2 items-end bg-background">
+              <textarea
+                rows={1}
+                placeholder="输入消息..."
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                className="flex-1 resize-none rounded-xl bg-muted px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/40 transition-all max-h-32"
+              />
+              <button
+                onClick={handleSend}
+                disabled={!inputValue.trim()}
+                className="shrink-0 h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 hover:opacity-90 active:scale-95 transition-all"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m22 2-7 20-4-9-9-4z" /><path d="M22 2 11 13" />
+                </svg>
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-muted-foreground">
+            <span className="text-7xl">💬</span>
+            <div className="text-center">
+              <p className="font-medium">选择一个对话</p>
+              <p className="text-sm mt-1">与卖家/买家沟通交易详情</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/globals.css">
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+</file>
+
+<file path="src/app/layout.tsx">
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+import { QueryProvider } from "@/components/providers/query-provider";
+import { Toaster } from "@/components/ui/sonner";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "SUSTech Market",
+  description: "SUSTech 校园社交交易平台",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="zh-CN">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        <QueryProvider>
+          {children}
+          <Toaster />
+        </QueryProvider>
+      </body>
+    </html>
+  );
+}
+</file>
+
+<file path="src/app/page.tsx">
+import { redirect } from "next/navigation";
+
+export default function Home() {
+  redirect("/marketplace");
+}
+</file>
+
+<file path=".gitignore">
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# OpenAPI generated client
+/src/api/
+
+CLAUDE.md
+</file>
+
+<file path="src/app/(auth)/login/page.tsx">
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+
+  function validate() {
+    const errs: Record<string, string> = {};
+    if (!form.email) errs.email = "请输入邮箱";
+    else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = "邮箱格式不正确";
+    if (!form.password) errs.password = "请输入密码";
+    else if (form.password.length < 6) errs.password = "密码至少 6 位";
+    return errs;
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const errs = validate();
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      return;
+    }
+    setErrors({});
+    setLoading(true);
+    // Simulate login
+    await new Promise((r) => setTimeout(r, 800));
+    setLoading(false);
+    router.push("/marketplace");
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4">
+      <div className="w-full max-w-sm">
+        {/* Logo area */}
+        <div className="text-center mb-8">
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-2xl font-bold shadow-lg mb-4">
+            市
+          </div>
+          <h1 className="text-2xl font-bold">SUSTech Market</h1>
+          <p className="text-muted-foreground text-sm mt-1">南科大校园社交交易平台</p>
+        </div>
+
+        {/* Form card */}
+        <div className="bg-card border rounded-3xl p-6 shadow-sm space-y-5">
+          <div className="space-y-1">
+            <h2 className="font-bold text-lg">登录账号</h2>
+            <p className="text-sm text-muted-foreground">欢迎回来！</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium" htmlFor="email">
+                邮箱
+              </label>
+              <input
+                id="email"
+                type="email"
+                placeholder="your@mail.sustech.edu.cn"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className={`w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/30 ${
+                  errors.email ? "border-destructive ring-2 ring-destructive/20" : ""
+                }`}
+              />
+              {errors.email && (
+                <p className="text-xs text-destructive">{errors.email}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium" htmlFor="password">
+                  密码
+                </label>
+                <button type="button" className="text-xs text-primary hover:underline">
+                  忘记密码？
+                </button>
+              </div>
+              <input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                className={`w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/30 ${
+                  errors.password ? "border-destructive ring-2 ring-destructive/20" : ""
+                }`}
+              />
+              {errors.password && (
+                <p className="text-xs text-destructive">{errors.password}</p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  登录中...
+                </span>
+              ) : (
+                "登录"
+              )}
+            </button>
+          </form>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center">
+              <span className="bg-card px-3 text-xs text-muted-foreground">或</span>
+            </div>
+          </div>
+
+          <p className="text-center text-sm text-muted-foreground">
+            还没有账号？{" "}
+            <Link href="/register" className="font-semibold text-primary hover:underline">
+              立即注册
+            </Link>
+          </p>
+
+          {/* 新增：管理员后台入口 */}
+          <div className="mt-4 pt-4 border-t text-center">
+            <Link 
+              href="/admin/users" 
+              className="text-xs text-muted-foreground/60 hover:text-red-500 transition-colors flex items-center justify-center gap-1"
+            >
+              <span>🛡️</span> 进入管理员后台 (Admin Demo)
+            </Link>
+          </div>
+        </div>
+
+        <p className="text-center text-xs text-muted-foreground mt-6">
+          登录即表示你同意我们的服务条款和隐私政策
+        </p>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/map/page.tsx">
+"use client";
+
+import { useState } from "react";
+
+// 定义地图点位数据
+const tradingSpots = [
+  // --- 原有物品交易点 ---
+  {
+    id: 1,
+    name: "荔园宿舍楼下",
+    shortName: "荔园",
+    description: "最热门的交易地点，宿舍区人流量大，适合书籍、生活用品等小物件",
+    activeItems: 28,
+    tags: ["书籍", "生活用品", "服装"],
+    emoji: "🏠",
+    color: "bg-blue-50 border-blue-200",
+    tagColor: "bg-blue-100 text-blue-700",
+    x: 30, y: 60, 
+  },
+  {
+    id: 2,
+    name: "图书馆正门",
+    shortName: "图书馆",
+    description: "安静安全的交易场所，适合书籍、学习用品，学术氛围浓厚",
+    activeItems: 15,
+    tags: ["书籍教材", "文具"],
+    emoji: "📚",
+    color: "bg-violet-50 border-violet-200",
+    tagColor: "bg-violet-100 text-violet-700",
+    x: 50, y: 40,
+  },
+  {
+    id: 3,
+    name: "工学院广场",
+    shortName: "工学院",
+    description: "电子产品热门交易地，光线好便于验货，附近有工科楼群",
+    activeItems: 22,
+    tags: ["电子产品", "数码"],
+    emoji: "💻",
+    color: "bg-emerald-50 border-emerald-200",
+    tagColor: "bg-emerald-100 text-emerald-700",
+    x: 70, y: 35,
+  },
+  {
+    id: 4,
+    name: "南园宿舍区",
+    shortName: "南园",
+    description: "南区主要生活区，适合大型物品如体育器材、家具等",
+    activeItems: 19,
+    tags: ["运动器材", "生活用品"],
+    emoji: "🏃",
+    color: "bg-amber-50 border-amber-200",
+    tagColor: "bg-amber-100 text-amber-700",
+    x: 25, y: 75,
+  },
+  {
+    id: 5,
+    name: "北园宿舍区",
+    shortName: "北园",
+    description: "北区宿舍楼群，交通便利，附近有小卖部可供等待",
+    activeItems: 12,
+    tags: ["服装", "生活用品"],
+    emoji: "🧩",
+    color: "bg-rose-50 border-rose-200",
+    tagColor: "bg-rose-100 text-rose-700",
+    x: 65, y: 70,
+  },
+  {
+    id: 6,
+    name: "体育馆门口",
+    shortName: "体育馆",
+    description: "运动器材、户外装备的专属交易点，就近验货试用",
+    activeItems: 8,
+    tags: ["运动器材", "服装"],
+    emoji: "🏋️",
+    color: "bg-orange-50 border-orange-200",
+    tagColor: "bg-orange-100 text-orange-700",
+    x: 45, y: 80,
+  },
+  
+  // --- 新增：技能交换与游戏陪玩点 ---
+  {
+    id: 7,
+    name: "学生活动中心",
+    shortName: "社团中心",
+    description: "充满活力的社交中心，适合寻找游戏开黑队友、摄影约拍或乐器切磋。",
+    activeItems: 34,
+    tags: ["游戏陪玩", "摄影约拍", "才艺教学"],
+    emoji: "🎮", // 使用手柄 Emoji 代表游戏/娱乐
+    color: "bg-indigo-50 border-indigo-200",
+    tagColor: "bg-indigo-100 text-indigo-700",
+    x: 80, y: 55, // 设定在地图右侧
+  },
+  {
+    id: 8,
+    name: "研楼公共空间",
+    shortName: "研楼",
+    description: "安静且有桌椅的公共区域，非常适合一对一学业辅导、编程教学或语言交换。",
+    activeItems: 11,
+    tags: ["学业辅导", "技能交换", "编程"],
+    emoji: "💡", // 使用灯泡代表知识/技能
+    color: "bg-cyan-50 border-cyan-200",
+    tagColor: "bg-cyan-100 text-cyan-700",
+    x: 15, y: 45, // 设定在地图左侧
+  },
+];
+
+export default function MapPage() {
+  const [selectedSpot, setSelectedSpot] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const selected = tradingSpots.find((s) => s.id === selectedSpot);
+  
+  // 过滤逻辑：支持搜索名称或标签
+  const filtered = tradingSpots.filter(
+    (s) =>
+      !searchQuery ||
+      s.name.includes(searchQuery) ||
+      s.tags.some((t) => t.includes(searchQuery))
+  );
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-3 border-b bg-background space-y-2">
+        <h1 className="font-bold text-lg">校园交易地图</h1>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base leading-none pointer-events-none">🔍</span>
+          <input
+            type="text"
+            placeholder="搜索地点、游戏陪玩、技能..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-xl bg-muted pl-9 pr-4 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/40 transition-all"
+          />
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {/* Stylized campus map */}
+        <div className="relative mx-4 mt-4 rounded-2xl bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border border-green-200 overflow-hidden" style={{ height: 260 }}>
+          {/* Map decorative elements */}
+          <div className="absolute inset-0">
+            {/* Roads */}
+            <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white/80" />
+            <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white/80" />
+            <div className="absolute left-1/4 top-1/4 w-1/2 h-1/2 rounded-xl border border-white/60 bg-white/20" />
+            {/* Lake / Feature */}
+            <div className="absolute right-[10%] bottom-[10%] w-16 h-12 rounded-[40%] bg-blue-100/50 border border-blue-200/30 rotate-12" />
+          </div>
+
+          {/* Campus label */}
+          <div className="absolute top-3 left-3 bg-white/80 backdrop-blur-sm rounded-lg px-2 py-1 text-xs font-bold text-green-800 border border-green-200 shadow-sm">
+            南方科技大学
+          </div>
+
+          {/* Spot markers */}
+          {tradingSpots.map((spot) => (
+            <button
+              key={spot.id}
+              onClick={() => setSelectedSpot(spot.id === selectedSpot ? null : spot.id)}
+              className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-200 z-10"
+              style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
+            >
+              <div className={`flex flex-col items-center gap-0.5 group`}>
+                <div className={`rounded-full text-base leading-none p-2 shadow-md transition-all duration-200 border-2 ${
+                  selectedSpot === spot.id
+                    ? "scale-125 bg-primary text-primary-foreground border-primary z-20"
+                    : "bg-white border-white hover:scale-110"
+                }`}>
+                  {spot.emoji}
+                </div>
+                <span className={`text-[9px] font-bold backdrop-blur-sm px-1 rounded shadow-sm whitespace-nowrap transition-colors ${
+                    selectedSpot === spot.id ? "bg-primary text-white" : "bg-white/90 text-gray-700"
+                }`}>
+                  {spot.shortName}
+                </span>
+              </div>
+            </button>
+          ))}
+
+          {/* Legend */}
+          <div className="absolute bottom-3 right-3 bg-white/80 backdrop-blur-sm rounded-lg px-2 py-1.5 text-[10px] text-gray-600 border border-green-200 shadow-sm">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-primary" />
+              <span>已选地点</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Selected spot detail */}
+        {selected && (
+          <div className={`mx-4 mt-3 rounded-2xl border p-4 ${selected.color} shadow-sm animate-in fade-in slide-in-from-top-2 duration-200`}>
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl bg-white/50 p-1.5 rounded-full">{selected.emoji}</span>
+                <div>
+                  <h3 className="font-bold text-gray-900">{selected.name}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5 font-medium">{selected.activeItems} 个活跃需求</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedSpot(null)} className="text-muted-foreground hover:text-foreground text-lg px-2">×</button>
+            </div>
+            <p className="text-sm mt-2 text-gray-700 leading-relaxed">{selected.description}</p>
+            <div className="flex gap-1.5 mt-3 flex-wrap">
+              {selected.tags.map((tag) => (
+                <span key={tag} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${selected.tagColor}`}>
+                  #{tag}
+                </span>
+              ))}
+            </div>
+            <button className="w-full mt-3 py-2 bg-white/60 hover:bg-white/80 text-sm font-semibold rounded-xl border border-black/5 transition-colors">
+              查看此处所有发布
+            </button>
+          </div>
+        )}
+
+        {/* Spots list */}
+        <div className="px-4 pt-4 pb-20">
+          <h2 className="font-semibold text-sm text-muted-foreground mb-3 uppercase tracking-wide flex justify-between items-center">
+            <span>地点列表 · {filtered.length}</span>
+          </h2>
+          <div className="space-y-2">
+            {filtered.map((spot) => (
+              <button
+                key={spot.id}
+                onClick={() => setSelectedSpot(spot.id === selectedSpot ? null : spot.id)}
+                className={`w-full text-left rounded-2xl border p-3.5 transition-all duration-200 ${
+                  selectedSpot === spot.id ? `${spot.color} shadow-md ring-1 ring-primary/20` : "bg-card hover:bg-muted/50 border-border/60"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl shrink-0 bg-muted/20 p-1 rounded-lg">{spot.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-sm">{spot.name}</span>
+                      <span className="text-xs text-muted-foreground shrink-0 bg-muted px-1.5 py-0.5 rounded-full">
+                        {spot.activeItems}
+                      </span>
+                    </div>
+                    <div className="flex gap-1 mt-1.5 flex-wrap">
+                      {spot.tags.slice(0, 3).map((tag) => (
+                        <span key={tag} className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${spot.tagColor}`}>
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {filtered.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
+              <span className="text-5xl opacity-50">🗺️</span>
+              <p className="text-sm">没有找到匹配的地点</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/marketplace/[id]/page.tsx">
+"use client";
+
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Package, Zap } from "lucide-react"; // 引入图标区分类型
+
+// --- 1. 使用最新的数据结构 ---
+interface MarketItem {
+  id: string;
+  title: string;
+  price: number;
+  originalPrice?: number;
+  unit?: string;          // 新增：单位
+  condition: string;
+  seller: string;
+  sellerAvatar?: string;  // 兼容旧数据，设为可选或补全
+  sellerRating?: number;
+  sellerDeals?: number;
+  time: string;
+  category: string;
+  location: string;
+  gradient: string;
+  emoji: string;
+  description?: string;   // 兼容
+  type: 'goods' | 'skill'; // 新增：类型
+}
+
+// 补全后的 Mock 数据（合并了详情页需要的 description 字段）
+const mockItems: MarketItem[] = [
+  // --- 闲置物品 (Goods) ---
+  { id: "1",  title: "高等数学教材（第七版）",     price: 25,   originalPrice: 45,   condition: "九成新",   seller: "张同学", sellerAvatar: "张", sellerRating: 4.9, sellerDeals: 12, time: "2小时前", category: "书籍教材", location: "荔园",   gradient: "from-blue-400 to-blue-600",     emoji: "📚", type: 'goods', description: "同济版高数上下册，笔记不多，内容清晰。考完研不再需要，价格实惠。自提或可约图书馆门口交易。" },
+  { id: "2",  title: "AirPods Pro 二代",           price: 1200, originalPrice: 1999, condition: "八成新",   seller: "李同学", sellerAvatar: "李", sellerRating: 5.0, sellerDeals: 8,  time: "5小时前", category: "电子产品", location: "工学院", gradient: "from-slate-400 to-slate-600",   emoji: "🎧", type: 'goods', description: "Apple AirPods Pro 第二代，含原装充电盒及数据线。电池健康度92%，降噪效果依旧出色。仅因换了其他耳机出售。" },
+  { id: "3",  title: "宿舍护眼台灯",               price: 35,   originalPrice: 89,   condition: "全新未拆", seller: "王同学", sellerAvatar: "王", sellerRating: 4.8, sellerDeals: 5,  time: "1天前",   category: "生活用品", location: "南园",   gradient: "from-amber-400 to-orange-500",  emoji: "💡", type: 'goods', description: "小米全光谱护眼台灯，全新未拆封，收到礼物但已有同款。支持多档调光，USB充电。" },
+  { id: "4",  title: "Nike跑鞋 42码",              price: 180,  originalPrice: 560,  condition: "七成新",   seller: "陈同学", sellerAvatar: "陈", sellerRating: 4.7, sellerDeals: 3,  time: "1天前",   category: "服装",     location: "体育馆", gradient: "from-red-400 to-rose-600",      emoji: "👟", type: 'goods', description: "Nike Air Zoom Pegasus 40，42码，黑白配色。日常训练用，鞋面干净，鞋底磨损正常。因脚型不合出售。" },
+  { id: "5",  title: "机械键盘（青轴）",           price: 220,  originalPrice: 380,  condition: "九成新",   seller: "刘同学", sellerAvatar: "刘", sellerRating: 4.9, sellerDeals: 20, time: "2天前",   category: "电子产品", location: "理学院", gradient: "from-emerald-400 to-green-600", emoji: "⌨️", type: 'goods', description: "IKBC C87机械键盘，87键布局，青轴，PBT双色键帽，打字手感极佳。附赠原装键帽拔键器。" },
+  
+  // --- 技能服务 (Skills) ---
+  { id: "s1", title: "Python 数据分析辅导",        price: 50,   unit: "/小时",       condition: "专业",     seller: "极客社", sellerAvatar: "极", sellerRating: 5.0, sellerDeals: 30, time: "1小时前", category: "学业辅导", location: "线上",   gradient: "from-yellow-400 to-amber-600",  emoji: "🐍", type: 'skill', description: "计算机系大神一对一辅导，擅长Pandas、NumPy、Matplotlib。从入门到大作业指导，包教包会。" },
+  { id: "s2", title: "校园人像摄影/毕业照",        price: 88,   unit: "/组",         condition: "接单中",   seller: "摄影协", sellerAvatar: "摄", sellerRating: 4.9, sellerDeals: 15, time: "3小时前", category: "摄影设计", location: "校内",   gradient: "from-pink-400 to-rose-600",     emoji: "📸", type: 'skill', description: "南科大摄影协会资深摄影师，索尼A7M4设备。包含前期沟通、拍摄1小时及后期精修9张。风格清新自然。" },
+  { id: "s3", title: "PPT 美化设计/答辩排版",      price: 30,   unit: "/份",         condition: "加急",     seller: "设计系", sellerAvatar: "设", sellerRating: 4.8, sellerDeals: 42, time: "1天前",   category: "摄影设计", location: "线上",   gradient: "from-cyan-400 to-blue-600",     emoji: "🎨", type: 'skill', description: "专业PPT设计，针对课程展示、毕业答辩等场景。提供逻辑梳理、排版美化、图表制作服务。急单可接。" },
+  { id: "s4", title: "吉他入门教学（一对一）",      price: 60,   unit: "/课时",       condition: "周末",     seller: "音乐社", sellerAvatar: "音", sellerRating: 5.0, sellerDeals: 8,  time: "2天前",   category: "才艺教学", location: "琴房",   gradient: "from-orange-400 to-red-500",    emoji: "🎸", type: 'skill', description: "民谣吉他零基础入门，手把手教学。教你识谱、按弦、扫弦，三节课学会弹唱《成都》。" },
+  { id: "s5", title: "跑腿/代取快递",              price: 5,    unit: "/次",         condition: "空闲",     seller: "王跑跑", sellerAvatar: "跑", sellerRating: 4.7, sellerDeals: 100,time: "10分前",  category: "生活服务", location: "北园",   gradient: "from-green-400 to-teal-500",    emoji: "🏃", type: 'skill', description: "北园区域代取快递、外卖。风雨无阻，诚信服务。大件物品需额外加价。" },
+];
+
+// 扩展状态颜色，支持技能状态
+const conditionColors: Record<string, string> = {
+  // 物品状态
+  "全新":     "bg-green-100 text-green-700",
+  "全新未拆": "bg-green-100 text-green-700",
+  "九成新":   "bg-blue-100 text-blue-700",
+  "八成新":   "bg-yellow-100 text-yellow-700",
+  "七成新":   "bg-orange-100 text-orange-700",
+  // 技能状态
+  "专业":     "bg-purple-100 text-purple-700",
+  "接单中":   "bg-blue-100 text-blue-700",
+  "加急":     "bg-red-100 text-red-700",
+  "周末":     "bg-orange-100 text-orange-700",
+  "空闲":     "bg-green-100 text-green-700",
+};
+
+export default function ItemDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const id = params.id as string;
+  const item = mockItems.find((i) => i.id === id);
+
+  if (!item) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-muted-foreground">
+        <span className="text-6xl">🔍</span>
+        <p className="text-lg font-medium">商品不存在或已下架</p>
+        <Link href="/marketplace">
+          <Button variant="outline">返回市场</Button>
+        </Link>
+      </div>
+    );
+  }
+
+  // 判断是否为技能类型
+  const isSkill = item.type === 'skill';
+
+  return (
+    <div className="min-h-screen max-w-2xl mx-auto bg-background pb-20">
+      {/* Back button */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-3 flex items-center gap-3">
+        <button
+          onClick={() => router.back()}
+          className="rounded-full p-1.5 hover:bg-muted transition-colors text-lg leading-none"
+          aria-label="返回"
+        >
+          ←
+        </button>
+        <span className="font-semibold text-sm truncate flex-1">{item.title}</span>
+        {/* 顶部简单的类型标记 */}
+        {isSkill ? (
+            <Zap className="w-4 h-4 text-purple-600" />
+        ) : (
+            <Package className="w-4 h-4 text-blue-600" />
+        )}
+      </div>
+
+      {/* Product image area */}
+      <div className={`w-full aspect-video bg-gradient-to-br ${item.gradient} flex items-center justify-center relative`}>
+        <span className="text-8xl drop-shadow-lg transform hover:scale-110 transition-transform duration-300">{item.emoji}</span>
+        {/* 类型角标 */}
+        <div className={`absolute bottom-4 left-4 px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm flex items-center gap-1 ${
+            isSkill ? 'bg-purple-500/90' : 'bg-blue-500/90'
+        }`}>
+            {isSkill ? <Zap size={12} fill="currentColor" /> : <Package size={12} />}
+            {isSkill ? "技能服务" : "闲置物品"}
+        </div>
+      </div>
+
+      <div className="p-4 space-y-6">
+        {/* Title & price */}
+        <div className="space-y-3">
+          <div className="flex items-start justify-between gap-2">
+            <h1 className="text-2xl font-bold leading-snug flex-1 text-foreground">{item.title}</h1>
+            <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${conditionColors[item.condition] ?? "bg-muted text-muted-foreground"}`}>
+              {item.condition}
+            </span>
+          </div>
+          
+          <div className="flex items-end gap-2">
+            <div className="flex items-baseline">
+                <span className="text-3xl font-bold text-primary">
+                    {item.price > 0 ? `¥${item.price}` : '免费'}
+                </span>
+                {isSkill && <span className="text-lg text-muted-foreground ml-0.5">{item.unit}</span>}
+            </div>
+
+            {item.originalPrice && (
+              <>
+                <span className="text-sm text-muted-foreground line-through mb-1 ml-1">
+                    {isSkill ? "参考价 " : "原价 "}¥{item.originalPrice}
+                </span>
+                <span className="text-xs text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded mb-1.5">
+                  {isSkill ? '优惠' : '省'} ¥{item.originalPrice - item.price}
+                </span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Meta info grid */}
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          {[
+            { label: "分类", value: item.category },
+            { label: isSkill ? "服务方式" : "交易地点", value: item.location },
+            { label: "发布时间", value: item.time },
+          ].map(({ label, value }) => (
+            <div key={label} className="bg-muted/50 rounded-xl p-3 border border-border/50">
+              <p className="text-xs text-muted-foreground mb-1">{label}</p>
+              <p className="font-medium text-foreground">{value}</p>
+            </div>
+          ))}
+          <div className="bg-muted/50 rounded-xl p-3 border border-border/50">
+            <p className="text-xs text-muted-foreground mb-1">{isSkill ? "当前状态" : "成色"}</p>
+            <p className="font-medium text-foreground">{item.condition}</p>
+          </div>
+        </div>
+
+        {/* Description */}
+        <div className="space-y-2">
+          <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
+              {isSkill ? "服务详情" : "商品描述"}
+          </h2>
+          <div className="text-sm leading-relaxed bg-muted/30 rounded-xl p-4 border border-border/50 text-foreground/90 whitespace-pre-wrap">
+              {item.description || "暂无详细描述..."}
+          </div>
+        </div>
+
+        {/* Seller info */}
+        <div className="border rounded-2xl p-4 space-y-3 bg-card shadow-sm">
+          <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">卖家信息</h2>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center text-lg font-bold text-primary">
+                {item.sellerAvatar || item.seller.charAt(0)}
+              </div>
+              <div>
+                <p className="font-semibold">{item.seller}</p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                  <span className="flex items-center text-amber-500">
+                      ⭐ {item.sellerRating || 5.0}
+                  </span>
+                  <span>·</span>
+                  <span>已成交 {item.sellerDeals || 0} 笔</span>
+                </div>
+              </div>
+            </div>
+            <Link href="/chat">
+              <Button size="sm" variant="outline" className="rounded-xl">查看主页</Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Sticky bottom action */}
+      <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md border-t p-4 flex gap-3 max-w-2xl mx-auto z-50">
+        <button className="flex-1 rounded-xl border bg-background hover:bg-muted transition-colors text-sm font-semibold flex items-center justify-center gap-2">
+          <span>❤️</span> 收藏
+        </button>
+        <Link href="/chat" className="flex-[2]">
+          <Button className={`w-full py-6 rounded-xl font-bold text-base shadow-lg ${
+              isSkill ? 'bg-purple-600 hover:bg-purple-700' : ''
+          }`}>
+            💬 {isSkill ? "预约服务" : "联系卖家"}
+          </Button>
+        </Link>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/marketplace/page.tsx">
+"use client";
+
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { 
+  Sparkles, 
+  ShoppingBag, 
+  GraduationCap, 
+  Search, 
+  Plus, 
+  X, 
+  Package, 
+  Zap 
+} from "lucide-react";
+
+// --- 1. 定义数据接口与 Mock 数据 ---
+
+interface MarketItem {
+  id: string;
+  title: string;
+  price: number;
+  originalPrice?: number;
+  unit?: string;
+  condition: string;
+  seller: string;
+  time: string;
+  category: string;
+  location: string;
+  gradient: string;
+  emoji: string;
+  type: 'goods' | 'skill';
+}
+
+const mockItems: MarketItem[] = [
+  // --- 闲置物品 (Goods) ---
+  { id: "1",  title: "高等数学教材（第七版）",     price: 25,   originalPrice: 45,   condition: "九成新",   seller: "张同学", time: "2小时前", category: "书籍教材", location: "荔园",   gradient: "from-blue-400 to-blue-600",     emoji: "📚", type: 'goods' },
+  { id: "2",  title: "AirPods Pro 二代",           price: 1200, originalPrice: 1999, condition: "八成新",   seller: "李同学", time: "5小时前", category: "电子产品", location: "工学院", gradient: "from-slate-400 to-slate-600",   emoji: "🎧", type: 'goods' },
+  { id: "3",  title: "宿舍护眼台灯",               price: 35,   originalPrice: 89,   condition: "全新未拆", seller: "王同学", time: "1天前",   category: "生活用品", location: "南园",   gradient: "from-amber-400 to-orange-500",  emoji: "💡", type: 'goods' },
+  { id: "4",  title: "Nike跑鞋 42码",              price: 180,  originalPrice: 560,  condition: "七成新",   seller: "陈同学", time: "1天前",   category: "服装",     location: "体育馆", gradient: "from-red-400 to-rose-600",      emoji: "👟", type: 'goods' },
+  { id: "5",  title: "机械键盘（青轴）",           price: 220,  originalPrice: 380,  condition: "九成新",   seller: "刘同学", time: "2天前",   category: "电子产品", location: "理学院", gradient: "from-emerald-400 to-green-600", emoji: "⌨️", type: 'goods' },
+  
+  // --- 技能服务 (Skills) ---
+  { id: "s1", title: "Python 数据分析辅导",        price: 50,   unit: "/小时",       condition: "专业",     seller: "极客社", time: "1小时前", category: "学业辅导", location: "线上",   gradient: "from-yellow-400 to-amber-600",  emoji: "🐍", type: 'skill' },
+  { id: "s2", title: "校园人像摄影/毕业照",        price: 88,   unit: "/组",         condition: "接单中",   seller: "摄影协", time: "3小时前", category: "摄影设计", location: "校内",   gradient: "from-pink-400 to-rose-600",     emoji: "📸", type: 'skill' },
+  { id: "s3", title: "PPT 美化设计/答辩排版",      price: 30,   unit: "/份",         condition: "加急",     seller: "设计系", time: "1天前",   category: "摄影设计", location: "线上",   gradient: "from-cyan-400 to-blue-600",     emoji: "🎨", type: 'skill' },
+  { id: "s4", title: "吉他入门教学（一对一）",      price: 60,   unit: "/课时",       condition: "周末",     seller: "音乐社", time: "2天前",   category: "才艺教学", location: "琴房",   gradient: "from-orange-400 to-red-500",    emoji: "🎸", type: 'skill' },
+  { id: "s5", title: "跑腿/代取快递",              price: 5,    unit: "/次",         condition: "空闲",     seller: "王跑跑", time: "10分前",  category: "生活服务", location: "北园",   gradient: "from-green-400 to-teal-500",    emoji: "🏃", type: 'skill' },
+];
+
+const GOODS_CATEGORIES = ["全部", "书籍教材", "电子产品", "生活用品", "服装", "运动器材", "其他"];
+const SKILL_CATEGORIES = ["全部", "学业辅导", "摄影设计", "才艺教学", "生活服务", "游戏陪玩", "其他"];
+
+// --- 骨架屏组件 (保留但默认不显示) ---
+const ItemSkeleton = () => (
+  <div className="bg-card rounded-2xl overflow-hidden border shadow-sm h-full flex flex-col">
+    <div className="aspect-square bg-muted animate-pulse" />
+    <div className="p-3 space-y-2 flex-1">
+      <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
+      <div className="h-3 bg-muted animate-pulse rounded w-1/4" />
+      <div className="flex justify-between items-end mt-2">
+        <div className="h-5 bg-muted animate-pulse rounded w-1/3" />
+        <div className="h-3 bg-muted animate-pulse rounded w-1/4" />
+      </div>
+    </div>
+  </div>
+);
+
+export default function MarketplacePage() {
+  // --- 2. 状态管理 ---
+  const [activeTab, setActiveTab] = useState<'goods' | 'skill'>('goods');
+  const [selectedCategory, setSelectedCategory] = useState("全部");
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  // [修改] 默认为 false，不显示 Loading 骨架屏
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
+
+  // [修改] 删除了模拟延迟的 useEffect
+
+  // 切换 Tab 重置分类
+  useEffect(() => {
+    setSelectedCategory("全部");
+    setSearchQuery("");
+  }, [activeTab]);
+
+  const currentCategories = activeTab === 'goods' ? GOODS_CATEGORIES : SKILL_CATEGORIES;
+
+  // --- 3. 过滤逻辑 ---
+  const filteredItems = mockItems.filter((item) => {
+    const matchType = item.type === activeTab;
+    const matchCat = selectedCategory === "全部" || item.category === selectedCategory;
+    const matchSearch = !searchQuery || item.title.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchType && matchCat && matchSearch;
+  });
+
+  return (
+    <div className="min-h-screen bg-background pb-20 relative">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-3 space-y-3">
+        
+        {/* Tab 切换 */}
+        <div className="flex p-1 bg-muted/50 rounded-xl">
+          <button
+            onClick={() => setActiveTab('goods')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg transition-all ${
+              activeTab === 'goods' 
+                ? 'bg-background shadow-sm text-blue-600' 
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <ShoppingBag size={16} /> 
+            <span>校园闲置</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('skill')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg transition-all ${
+              activeTab === 'skill' 
+                ? 'bg-background shadow-sm text-purple-600' 
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <GraduationCap size={16} /> 
+            <span>技能交换</span>
+          </button>
+        </div>
+
+        {/* 搜索栏与发布按钮 */}
+        <div className="flex gap-2">
+          <div className="relative flex-1 group">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+              <Search size={16} />
+            </span>
+            <input
+              type="text"
+              placeholder={activeTab === 'goods' ? "搜索教材、耳机..." : "搜索辅导、摄影..."}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-xl bg-muted pl-9 pr-10 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+            />
+            {/* AI 匹配按钮 */}
+            <button className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors" title="AI 智能匹配">
+               <Sparkles size={18} className="animate-pulse" />
+            </button>
+          </div>
+          
+          {/* 发布按钮 */}
+          <button 
+            onClick={() => setIsPublishDialogOpen(true)}
+            className="shrink-0 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 active:scale-95 transition-all flex items-center gap-1 shadow-sm"
+          >
+            <Plus size={18} />
+            <span className="hidden sm:inline">发布</span>
+          </button>
+        </div>
+
+        {/* Categories Chips */}
+        <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [-webkit-overflow-scrolling:touch] pb-1">
+          {currentCategories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all ${
+                selectedCategory === cat
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              }`}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Grid Content */}
+      <div className="p-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {/* 根据 isLoading 状态显示 */}
+        {isLoading ? (
+          Array.from({ length: 8 }).map((_, i) => <ItemSkeleton key={i} />)
+        ) : (
+          <>
+            {filteredItems.map((item) => (
+              <Link key={item.id} href={`/marketplace/${item.id}`}>
+                <article className="bg-card rounded-2xl overflow-hidden border shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] h-full flex flex-col">
+                  
+                  {/* 图片区域 */}
+                  <div className={`aspect-square bg-gradient-to-br ${item.gradient} flex items-center justify-center relative`}>
+                    <span className="text-4xl drop-shadow-sm transform group-hover:scale-110 transition-transform">{item.emoji}</span>
+                    <span className="absolute top-2 right-2 rounded-full bg-black/20 backdrop-blur-md px-2 py-0.5 text-[10px] font-medium text-white border border-white/10">
+                      {item.condition}
+                    </span>
+                    {item.type === 'skill' && (
+                      <span className="absolute bottom-2 left-2 rounded px-1.5 py-0.5 text-[10px] font-bold bg-white/90 text-purple-600 shadow-sm">
+                        技能
+                      </span>
+                    )}
+                  </div>
+
+                  {/* 信息区域 */}
+                  <div className="p-3 flex flex-col flex-1 justify-between space-y-2">
+                    <div>
+                      <h3 className="text-sm font-medium leading-snug line-clamp-2 text-card-foreground">
+                        {item.title}
+                      </h3>
+                      <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <span className="bg-muted px-1 rounded">{item.category}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-end justify-between">
+                      <div className="flex items-baseline gap-1">
+                        {activeTab === 'skill' ? (
+                           <div className="flex flex-col">
+                             <span className="text-xs font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
+                                {item.price > 0 ? `¥${item.price}${item.unit}` : '免费交换'}
+                             </span>
+                           </div>
+                        ) : (
+                           <>
+                            <span className="text-base font-bold text-primary">¥{item.price}</span>
+                            {item.originalPrice && (
+                              <span className="text-[10px] text-muted-foreground line-through decoration-muted-foreground/50">
+                                ¥{item.originalPrice}
+                              </span>
+                            )}
+                           </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-border/50 flex items-center justify-between text-[10px] text-muted-foreground">
+                      <span className="flex items-center gap-0.5 max-w-[60%] truncate">
+                        📍 {item.location}
+                      </span>
+                      <span>{item.time}</span>
+                    </div>
+                  </div>
+                </article>
+              </Link>
+            ))}
+          </>
+        )}
+      </div>
+
+      {/* Empty State */}
+      {!isLoading && filteredItems.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-4">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center text-3xl">
+            🫙
+          </div>
+          <div className="text-center">
+            <p className="font-medium text-foreground">暂无相关{activeTab === 'goods' ? '物品' : '技能'}</p>
+            <p className="text-sm mt-1">换个关键词，或者试试 <span className="text-purple-600 font-medium">AI 智能匹配</span></p>
+          </div>
+        </div>
+      )}
+
+      {/* 发布引导弹窗 (Dialog) */}
+      {isPublishDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-background w-full max-w-sm rounded-3xl p-6 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">你要发布什么？</h2>
+              <button 
+                onClick={() => setIsPublishDialogOpen(false)}
+                className="p-1 rounded-full hover:bg-muted transition-colors"
+              >
+                <X size={20} className="text-muted-foreground" />
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <button className="flex flex-col items-center justify-center gap-3 h-32 rounded-2xl border-2 border-muted hover:border-blue-500 hover:bg-blue-50 transition-all group">
+                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                  <Package size={24} />
+                </div>
+                <span className="font-semibold text-sm text-foreground">闲置物品</span>
+              </button>
+              
+              <button className="flex flex-col items-center justify-center gap-3 h-32 rounded-2xl border-2 border-muted hover:border-purple-500 hover:bg-purple-50 transition-all group">
+                <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
+                  <Zap size={24} />
+                </div>
+                <span className="font-semibold text-sm text-foreground">个人技能</span>
+              </button>
+            </div>
+            
+            <p className="text-xs text-center text-muted-foreground mt-6">
+              发布即代表同意《校园交易公约》
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/profile/page.tsx">
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+// [新增] 引入图标
+import { CheckCircle2, Star } from "lucide-react";
+
+const mockUser = {
+  name: "南科小卖家",
+  username: "@sustech_2024",
+  avatar: "南",
+  college: "工学院",
+  joinDate: "2024 年 9 月",
+  bio: "SUSTech 大三学生，喜欢淘便宜好物，东西多到放不下 😂",
+  stats: { published: 8, sold: 15, rating: 4.9, followers: 32 },
+};
+
+const myItems = [
+  { id: "5",  title: "机械键盘（青轴）",      price: 220, condition: "九成新", gradient: "from-emerald-400 to-green-600",  emoji: "⌨️", status: "在售" },
+  { id: "11", title: "哑铃一对 5kg×2",        price: 55,  condition: "九成新", gradient: "from-stone-400 to-stone-600",    emoji: "🏋️", status: "在售" },
+  { id: "2",  title: "AirPods Pro 二代",      price: 1200,condition: "八成新", gradient: "from-slate-400 to-slate-600",   emoji: "🎧", status: "已售" },
+  { id: "9",  title: "线性代数（同济第六版）", price: 15,  condition: "八成新", gradient: "from-indigo-400 to-blue-600",   emoji: "📐", status: "已售" },
+];
+
+const favorites = [
+  { id: "1",  title: "高等数学教材（第七版）", price: 25,  gradient: "from-blue-400 to-blue-600",    emoji: "📚" },
+  { id: "8",  title: "iPad mini 6 WiFi 256G", price: 2800, gradient: "from-zinc-400 to-gray-600",    emoji: "📱" },
+  { id: "7",  title: "瑜伽垫（全新未拆封）",  price: 45,  gradient: "from-teal-400 to-cyan-600",    emoji: "🧘" },
+];
+
+const tabs = ["我的发布", "已购商品", "收藏"];
+
+export default function ProfilePage() {
+  const [activeTab, setActiveTab] = useState("我的发布");
+  const [editing, setEditing] = useState(false);
+
+  return (
+    <div className="min-h-screen">
+      {/* Profile header */}
+      <div className="bg-gradient-to-b from-primary/10 to-background px-4 pt-6 pb-4">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-4">
+            {/* Avatar Section with Verification Badge */}
+            <div className="relative"> {/* [修改] 增加 relative 容器 */}
+                <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/60 to-primary flex items-center justify-center text-3xl font-bold text-primary-foreground shadow-lg">
+                  {mockUser.avatar}
+                </div>
+                {/* [新增] 认证徽章 - 绝对定位 */}
+                <div className="absolute -bottom-1 -right-1 bg-white p-0.5 rounded-full shadow-sm">
+                   <CheckCircle2 className="w-5 h-5 text-blue-500 fill-blue-100" />
+                </div>
+            </div>
+            
+            <div>
+              <h1 className="text-xl font-bold">{mockUser.name}</h1>
+              
+              {/* [新增] 信誉分展示条 */}
+              <div className="flex items-center gap-1.5 mt-1 bg-amber-100/50 px-2 py-0.5 rounded-md w-fit border border-amber-100">
+                <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                <span className="text-xs font-bold text-amber-700">信誉极好 4.9</span>
+              </div>
+
+              <p className="text-sm text-muted-foreground mt-1">{mockUser.username}</p>
+              
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5 font-medium">
+                  {mockUser.college}
+                </span>
+                <span className="text-xs text-muted-foreground">加入于 {mockUser.joinDate}</span>
+              </div>
+            </div>
+          </div>
+          
+          <button
+            onClick={() => setEditing(!editing)}
+            className="shrink-0 rounded-xl border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
+          >
+            编辑
+          </button>
+        </div>
+
+        {/* Bio */}
+        <p className="text-sm text-muted-foreground leading-relaxed">{mockUser.bio}</p>
+
+        {/* Stats */}
+        <div className="grid grid-cols-4 gap-2 mt-4">
+          {[
+            { label: "已发布", value: mockUser.stats.published },
+            { label: "已成交", value: mockUser.stats.sold },
+            { label: "信用评分", value: mockUser.stats.rating },
+            { label: "关注者", value: mockUser.stats.followers },
+          ].map(({ label, value }) => (
+            <div key={label} className="bg-card rounded-xl p-3 text-center border">
+              <p className="text-xl font-bold">{value}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="border-b px-4 flex gap-0">
+        {tabs.map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors -mb-px ${
+              activeTab === tab
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      <div className="p-4">
+        {activeTab === "我的发布" && (
+          <div className="space-y-3">
+            {myItems.map((item) => (
+              <Link key={item.id} href={`/marketplace/${item.id}`}>
+                <div className="flex items-center gap-3 bg-card border rounded-2xl p-3 hover:shadow-md transition-all duration-200">
+                  <div className={`h-14 w-14 shrink-0 rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center text-2xl`}>
+                    {item.emoji}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                        <p className="font-medium text-sm line-clamp-1">{item.title}</p>
+                        <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium ${
+                            item.status === "在售"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-muted text-muted-foreground"
+                        }`}>
+                            {item.status}
+                        </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{item.condition}</p>
+                    <p className="font-bold mt-1 text-primary">¥{item.price}</p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+            <button className="w-full rounded-2xl border-2 border-dashed py-6 text-sm text-muted-foreground hover:bg-muted/50 transition-colors flex flex-col items-center gap-2">
+              <span className="text-2xl">＋</span>
+              发布新商品
+            </button>
+          </div>
+        )}
+
+        {activeTab === "已购商品" && (
+          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
+            <span className="text-5xl">🛍️</span>
+            <p className="font-medium">暂无购买记录</p>
+            <p className="text-sm">去市场看看心仪的好物？</p>
+            <Link href="/marketplace">
+              <button className="mt-2 rounded-xl bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 transition">
+                逛逛市场
+              </button>
+            </Link>
+          </div>
+        )}
+
+        {activeTab === "收藏" && (
+          <div className="grid grid-cols-2 gap-3">
+            {favorites.map((item) => (
+              <Link key={item.id} href={`/marketplace/${item.id}`}>
+                <article className="bg-card rounded-2xl overflow-hidden border hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5">
+                  <div className={`aspect-square bg-gradient-to-br ${item.gradient} flex items-center justify-center`}>
+                    <span className="text-4xl">{item.emoji}</span>
+                  </div>
+                  <div className="p-3 space-y-1">
+                    <p className="text-sm font-medium line-clamp-2 leading-snug">{item.title}</p>
+                    <span className="font-bold text-base text-primary">¥{item.price}</span>
+                  </div>
+                </article>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Settings section */}
+      <div className="px-4 pb-24 mt-4">
+        <div className="border rounded-2xl overflow-hidden divide-y bg-card">
+          {[
+            { icon: "🔔", label: "通知设置" },
+            { icon: "🔒", label: "账号安全" },
+            { icon: "🎨", label: "外观设置" },
+            { icon: "❓", label: "帮助与反馈" },
+          ].map(({ icon, label }) => (
+            <button
+              key={label}
+              className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-muted/50 transition-colors text-left"
+            >
+              <span className="flex items-center gap-3 text-sm font-medium">
+                <span>{icon}</span>
+                {label}
+              </span>
+              <span className="text-muted-foreground text-sm">›</span>
+            </button>
+          ))}
+        </div>
+
+        <button className="w-full mt-4 rounded-2xl border border-red-200 py-3.5 text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors bg-card">
+          退出登录
+        </button>
+      </div>
+    </div>
+  );
+}
+</file>
+
+</files>
