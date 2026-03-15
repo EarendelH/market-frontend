@@ -71,10 +71,15 @@ src/app/map/page.tsx
 src/app/marketplace/[id]/page.tsx
 src/app/marketplace/layout.tsx
 src/app/marketplace/page.tsx
+src/app/orders/[id]/page.tsx
+src/app/orders/page.tsx
 src/app/page.tsx
+src/app/profile/[id]/page.tsx
 src/app/profile/layout.tsx
 src/app/profile/page.tsx
+src/app/publish/page.tsx
 src/app/types/index.ts
+src/app/wishlists/page.tsx
 src/components/layout/app-shell.tsx
 src/components/layout/mobile-nav.tsx
 src/components/layout/sidebar.tsx
@@ -98,6 +103,785 @@ tsconfig.json
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="src/app/orders/[id]/page.tsx">
+"use client";
+
+import { useParams, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { Package, Clock, ShieldCheck, MapPin, MessageSquare, ChevronLeft } from "lucide-react";
+import Link from "next/link";
+
+export default function OrderDetailPage() {
+  const { id } = useParams();
+  const router = useRouter();
+
+  const { data: order, isLoading } = useQuery({
+    queryKey: ["order", id],
+    queryFn: () => apiClient.get<any>(`/orders/${id}`),
+  });
+
+  const { data: item } = useQuery({
+    queryKey: ["item", order?.item_id],
+    queryFn: () => apiClient.get<any>(`/items/${order?.item_id}`),
+    enabled: !!order?.item_id,
+  });
+
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">正在加载订单详情...</div>;
+  if (!order) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">找不到该订单</div>;
+
+  const statusMap: Record<string, { label: string; color: string; desc: string }> = {
+    pending: { label: "等待确认", color: "text-amber-600 bg-amber-50 border-amber-200", desc: "卖家还未确认此订单，请耐心等待。" },
+    confirmed: { label: "进行中", color: "text-blue-600 bg-blue-50 border-blue-200", desc: "卖家已确认订单，请尽快完成线下交易。" },
+    completed: { label: "已完成", color: "text-green-600 bg-green-50 border-green-200", desc: "交易已顺利结束。" },
+    cancelled: { label: "已取消", color: "text-slate-600 bg-slate-50 border-slate-200", desc: "该订单已被取消。" },
+  };
+
+  const currentStatus = statusMap[order.status] || statusMap.pending;
+
+  return (
+    <div className="min-h-screen bg-muted/30 pb-20">
+      <div className="bg-background border-b px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+        <button onClick={() => router.back()} className="p-1.5 hover:bg-muted rounded-full">
+          <ChevronLeft size={24} />
+        </button>
+        <span className="font-bold">订单详情</span>
+      </div>
+
+      <div className={`${currentStatus.color} px-6 py-8 border-b`}>
+        <h1 className="text-2xl font-bold mb-2">{currentStatus.label}</h1>
+        <p className="text-sm opacity-90">{currentStatus.desc}</p>
+      </div>
+
+      <div className="p-4 space-y-4 max-w-2xl mx-auto">
+        <div className="bg-background rounded-2xl p-4 border shadow-sm">
+          <h2 className="text-sm font-bold text-muted-foreground mb-3 flex items-center gap-2">
+            <Package size={16} /> 关联商品
+          </h2>
+          {item ? (
+            <Link href={`/marketplace/${item.id}`} className="flex gap-3 items-center group">
+              <div className="h-16 w-16 bg-muted rounded-xl overflow-hidden shrink-0">
+                {item.cover_images?.[0] ? <img src={item.cover_images[0]} className="w-full h-full object-cover" /> : <Package className="m-auto h-full text-muted-foreground/30" />}
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-sm group-hover:text-primary transition-colors">{item.title}</p>
+                <p className="text-xs text-muted-foreground mt-1">点击查看商品快照</p>
+              </div>
+            </Link>
+          ) : (
+            <p className="text-sm text-muted-foreground">商品信息加载中或已失效</p>
+          )}
+        </div>
+
+        <div className="bg-background rounded-2xl p-4 border shadow-sm space-y-4">
+          <h2 className="text-sm font-bold text-muted-foreground flex items-center gap-2 border-b pb-2">
+            <ShieldCheck size={16} /> 交易信息
+          </h2>
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-muted-foreground">订单编号</span>
+            <span className="font-mono">{order.id}</span>
+          </div>
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-muted-foreground">成交价格</span>
+            <span className="font-bold text-primary text-lg">¥{order.price}</span>
+          </div>
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-muted-foreground">创建时间</span>
+            <span>{new Date(order.created_at).toLocaleString()}</span>
+          </div>
+          {order.note && (
+            <div className="pt-2 border-t mt-2">
+              <span className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><MessageSquare size={12}/> 买家留言</span>
+              <div className="bg-muted/50 p-3 rounded-xl text-sm leading-relaxed">{order.note}</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/orders/page.tsx">
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth-store";
+import { toast } from "sonner";
+import { Package, Clock, CheckCircle2, XCircle } from "lucide-react";
+
+interface Order {
+  id: number;
+  item_id: number;
+  buyer_id: number;
+  seller_id: number;
+  price: number;
+  status: "pending" | "confirmed" | "completed" | "cancelled";
+  note: string | null;
+  created_at: string;
+}
+
+const statusMap = {
+  pending: { label: "待确认", color: "text-amber-600 bg-amber-50 border-amber-200" },
+  confirmed: { label: "进行中", color: "text-blue-600 bg-blue-50 border-blue-200" },
+  completed: { label: "已完成", color: "text-green-600 bg-green-50 border-green-200" },
+  cancelled: { label: "已取消", color: "text-slate-600 bg-slate-50 border-slate-200" },
+};
+
+export default function OrdersPage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const currentUser = useAuthStore((s) => s.user);
+  const [activeTab, setActiveTab] = useState<"buy" | "sell">("buy");
+
+  // 获取用户的所有订单
+  const { data: orders = [], isLoading } = useQuery({
+    queryKey: ["orders"],
+    queryFn: () => apiClient.get<Order[]>("/orders"),
+  });
+
+  // 状态变更 Mutations
+  const confirmMutation = useMutation({
+    mutationFn: (id: number) => apiClient.patch(`/orders/${id}/confirm`),
+    onSuccess: () => {
+      toast.success("订单已确认");
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+    onError: (err: any) => toast.error(err.message || "确认失败"),
+  });
+
+  const completeMutation = useMutation({
+    mutationFn: (id: number) => apiClient.patch(`/orders/${id}/complete`),
+    onSuccess: () => {
+      toast.success("已标记完成！");
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+    onError: (err: any) => toast.error(err.message || "操作失败"),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (id: number) => apiClient.patch(`/orders/${id}/cancel`),
+    onSuccess: () => {
+      toast.success("订单已取消");
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+    onError: (err: any) => toast.error(err.message || "取消失败"),
+  });
+
+  // 过滤买入和卖出的订单
+  const filteredOrders = orders.filter((o) =>
+    activeTab === "buy"
+      ? o.buyer_id === Number(currentUser?.id)
+      : o.seller_id === Number(currentUser?.id)
+  );
+
+  return (
+    <div className="min-h-screen bg-background pb-20">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-3 flex items-center gap-3">
+        <button onClick={() => router.back()} className="rounded-full p-1.5 hover:bg-muted transition-colors text-lg leading-none">←</button>
+        <h1 className="font-bold text-lg flex-1">我的订单</h1>
+      </div>
+
+      <div className="border-b px-4 flex gap-4 bg-card">
+        <button
+          onClick={() => setActiveTab("buy")}
+          className={`py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab === "buy" ? "border-primary text-foreground" : "border-transparent text-muted-foreground"}`}
+        >
+          我买到的
+        </button>
+        <button
+          onClick={() => setActiveTab("sell")}
+          className={`py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab === "sell" ? "border-primary text-foreground" : "border-transparent text-muted-foreground"}`}
+        >
+          我卖出的
+        </button>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {isLoading ? (
+          <div className="text-center text-muted-foreground py-10">加载中...</div>
+        ) : filteredOrders.length === 0 ? (
+          <div className="text-center text-muted-foreground py-20 flex flex-col items-center gap-2">
+            <Package size={48} className="opacity-20" />
+            <p>暂无相关订单</p>
+          </div>
+        ) : (
+          filteredOrders.map((order) => (
+            <div key={order.id} className="bg-card border rounded-2xl p-4 shadow-sm space-y-3">
+              <div className="flex justify-between items-center border-b pb-2">
+                <span className="text-xs font-mono text-muted-foreground">订单号: #{order.id}</span>
+                <span className={`text-xs px-2 py-1 rounded-full border ${statusMap[order.status].color}`}>
+                  {statusMap[order.status].label}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="font-medium text-sm">商品 ID: {order.item_id}</p>
+                  {order.note && <p className="text-xs text-muted-foreground mt-1 bg-muted p-1.5 rounded">备注: {order.note}</p>}
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-primary">¥{order.price}</p>
+                </div>
+              </div>
+
+              {/* 操作按钮组 */}
+              <div className="pt-2 flex justify-end gap-2 border-t border-dashed">
+                {order.status === "pending" && (
+                  <>
+                    <button
+                      onClick={() => cancelMutation.mutate(order.id)}
+                      disabled={cancelMutation.isPending}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg border hover:bg-muted text-muted-foreground"
+                    >
+                      取消订单
+                    </button>
+                    <button
+                      onClick={() => confirmMutation.mutate(order.id)}
+                      disabled={confirmMutation.isPending}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:opacity-90"
+                    >
+                      确认订单
+                    </button>
+                  </>
+                )}
+                {order.status === "confirmed" && (
+                  <button
+                    onClick={() => completeMutation.mutate(order.id)}
+                    disabled={completeMutation.isPending}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 flex items-center gap-1"
+                  >
+                    <CheckCircle2 size={14} /> 标记为已完成
+                  </button>
+                )}
+                {(order.status === "completed" || order.status === "cancelled") && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock size={12} /> {new Date(order.created_at).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/profile/[id]/page.tsx">
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { Star, CheckCircle2, Package, MessageCircle, ChevronLeft } from "lucide-react";
+
+export default function PublicProfilePage() {
+  const params = useParams();
+  const router = useRouter();
+  const userId = typeof params.id === "string" || typeof params.id === "number" ? params.id : "";
+  
+
+  const { data: user, isLoading: isUserLoading } = useQuery({
+    queryKey: ["users", userId],
+    queryFn: () => apiClient.get<any>(`/users/${userId}`),
+  });
+
+  const { data: itemsData, isLoading: isItemsLoading } = useQuery({
+    queryKey: ["items", "user", userId],
+    queryFn: () => apiClient.get<any>("/items", { params: { owner_id: userId } }),
+    enabled: !!userId,
+  });
+
+  if (isUserLoading) return <div className="p-10 text-center text-muted-foreground">正在加载主页信息...</div>;
+  if (!user) return <div className="p-10 text-center text-muted-foreground">该用户不存在或已被注销</div>;
+
+  const items = itemsData?.items || [];
+
+  return (
+    <div className="min-h-screen bg-background pb-20">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-3 flex items-center gap-4">
+        <button onClick={() => router.back()} className="p-1.5 hover:bg-muted rounded-full transition-colors">
+          <ChevronLeft size={24} />
+        </button>
+        <span className="font-bold">用户主页</span>
+      </div>
+
+      <div className="p-4 bg-gradient-to-b from-muted/50 to-transparent">
+        <div className="flex flex-col items-center text-center space-y-4 py-4">
+          <div className="h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center text-4xl font-bold text-primary shadow-inner border-4 border-background overflow-hidden">
+            {user.avatar_url ? (
+               <img src={user.avatar_url} className="w-full h-full object-cover" /> 
+            ) : (
+               user.username.charAt(0).toUpperCase()
+            )}
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">{user.username}</h1>
+            <p className="text-sm text-muted-foreground mt-2 max-w-[250px] mx-auto leading-relaxed">
+              {user.bio || "这位同学很低调，什么也没有留下。"}
+            </p>
+          </div>
+
+          <div className="flex gap-6 w-full justify-center py-2">
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center gap-1 text-amber-600 font-bold text-lg">
+                <Star size={16} className="fill-amber-500" /> {user.reputation_trade}
+              </div>
+              <span className="text-[10px] text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full">交易信誉</span>
+            </div>
+            <div className="w-px h-10 bg-border" />
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center gap-1 text-blue-600 font-bold text-lg">
+                <CheckCircle2 size={16} className="fill-blue-500 text-white" /> {user.reputation_skill}
+              </div>
+              <span className="text-[10px] text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full">技能信誉</span>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+
+      <div className="px-4 mt-2">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-lg flex items-center gap-2">
+            Ta 发布的 <span className="text-muted-foreground font-normal text-sm bg-muted px-2 py-0.5 rounded-full">{items.length}</span>
+          </h2>
+        </div>
+
+        {isItemsLoading ? (
+          <div className="grid grid-cols-2 gap-3 animate-pulse">
+            {[1, 2, 3, 4].map(i => <div key={i} className="aspect-[4/5] bg-muted rounded-2xl" />)}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="py-20 text-center flex flex-col items-center gap-3 text-muted-foreground opacity-50">
+            <Package size={48} />
+            <p className="text-sm">该用户还没有发布过任何闲置或技能</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {items.map((item: any) => (
+              <Link key={item.id} href={`/marketplace/${item.id}`}>
+                <article className="bg-card border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow h-full flex flex-col">
+                  <div className="aspect-square bg-muted relative">
+                    {item.cover_images?.[0] ? (
+                      <img src={item.cover_images[0]} alt={item.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center"><Package size={32} className="text-muted-foreground/30" /></div>
+                    )}
+                  </div>
+                  <div className="p-3 flex flex-col justify-between flex-1">
+                    <h3 className="text-xs font-medium line-clamp-2 min-h-[2rem]">{item.title}</h3>
+                    <div className="flex items-baseline gap-0.5 text-primary font-bold mt-2">
+                      <span className="text-[10px]">¥</span>
+                      <span className="text-base">{item.price}</span>
+                    </div>
+                  </div>
+                </article>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/publish/page.tsx">
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { apiClient } from "@/lib/api-client";
+import { toast } from "sonner";
+
+// 定义匹配后端要求的 Zod Schema
+const publishSchema = z.object({
+  type: z.enum(["item", "skill"]),
+  title: z.string().min(2, "标题至少 2 个字").max(50, "标题太长"),
+  price: z.number().min(0, "价格不能为负"),
+  price_mode: z.enum(["fixed", "negotiable"]),
+  description: z.string().max(500, "描述不能超过500字").optional(),
+  location_text: z.string().min(1, "请填写交易地点"),
+  delivery_method: z.enum(["meetup", "offline", "online"]),
+});
+
+type PublishForm = z.infer<typeof publishSchema>;
+
+export default function PublishPage() {
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<PublishForm>({
+    resolver: zodResolver(publishSchema),
+    defaultValues: {
+      type: "item",
+      price_mode: "negotiable",
+      delivery_method: "meetup",
+    },
+  });
+
+  const watchType = watch("type");
+
+  async function onSubmit(data: PublishForm) {
+    setIsSubmitting(true);
+    try {
+      // 对接后端 POST /items 接口
+      const res = await apiClient.post<{ id: number }>("/items", data);
+      toast.success("发布成功！");
+      router.push(`/marketplace/${res.id}`);
+    } catch (error: any) {
+      toast.error(error.message || "发布失败，请重试");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto p-6 min-h-screen pb-20">
+      <div className="flex items-center gap-4 mb-6">
+        <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-muted text-lg">←</button>
+        <h1 className="text-2xl font-bold">发布新内容</h1>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 bg-card p-6 rounded-2xl border shadow-sm">
+        
+        <div className="space-y-2">
+          <label className="text-sm font-medium">类型</label>
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => setValue("type", "item")}
+              className={`flex-1 py-3 rounded-xl border-2 transition-all ${watchType === "item" ? "border-primary bg-primary/5 text-primary" : "border-muted"}`}
+            >
+              📦 闲置物品
+            </button>
+            <button
+              type="button"
+              onClick={() => setValue("type", "skill")}
+              className={`flex-1 py-3 rounded-xl border-2 transition-all ${watchType === "skill" ? "border-purple-500 bg-purple-50 text-purple-600" : "border-muted"}`}
+            >
+              ⚡ 技能服务
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">标题</label>
+          <input
+            {...register("title")}
+            placeholder={watchType === "item" ? "例如：九成新 MacBook Air M1" : "例如：高数一对一辅导"}
+            className="w-full rounded-xl border bg-background px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/30"
+          />
+          {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">价格 (元)</label>
+            <input
+              type="number"
+              {...register("price", { valueAsNumber: true })}
+              placeholder="0.00"
+              className="w-full rounded-xl border bg-background px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            {errors.price && <p className="text-xs text-destructive">{errors.price.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">是否可刀</label>
+            <select
+              {...register("price_mode")}
+              className="w-full rounded-xl border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              <option value="negotiable">可小刀</option>
+              <option value="fixed">一口价</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">交易地点</label>
+          <input
+            {...register("location_text")}
+            placeholder="例如：荔园食堂门口、线上"
+            className="w-full rounded-xl border bg-background px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/30"
+          />
+          {errors.location_text && <p className="text-xs text-destructive">{errors.location_text.message}</p>}
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">详细描述</label>
+          <textarea
+            {...register("description")}
+            rows={4}
+            placeholder="描述一下物品的成色、购买时间，或者技能的具体内容..."
+            className="w-full rounded-xl border bg-background px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full rounded-xl bg-primary py-3.5 font-bold text-primary-foreground hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50"
+        >
+          {isSubmitting ? "正在发布..." : "确认发布"}
+        </button>
+      </form>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/wishlists/page.tsx">
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { toast } from "sonner";
+import { Heart, Plus, Edit2, Trash2, X, Power, PowerOff } from "lucide-react";
+
+// 定义心愿单数据结构
+interface Wishlist {
+  id: number;
+  user_id: number;
+  keyword: string;
+  max_price: number;
+  status: "active" | "inactive";
+  created_at: string;
+}
+
+export default function WishlistsPage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  // 弹窗与表单状态
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<Wishlist | null>(null);
+  const [form, setForm] = useState({ keyword: "", max_price: "" });
+
+  // 1. 获取我的心愿单列表
+  const { data: wishlists = [], isLoading } = useQuery({
+    queryKey: ["wishlists"],
+    queryFn: () => apiClient.get<Wishlist[]>("/wishlists"),
+  });
+
+  // 2. 新增心愿单 Mutation
+  const createMutation = useMutation({
+    mutationFn: (data: { keyword: string; max_price: number }) => 
+      apiClient.post("/wishlists", data),
+    onSuccess: () => {
+      toast.success("心愿单发布成功！");
+      closeModal();
+      queryClient.invalidateQueries({ queryKey: ["wishlists"] });
+    },
+    onError: (err: any) => toast.error(err.message || "发布失败"),
+  });
+
+  // 3. 更新心愿单 Mutation (修改价格或状态)
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<Wishlist> }) => 
+      apiClient.patch(`/wishlists/${id}`, data),
+    onSuccess: () => {
+      toast.success("更新成功！");
+      closeModal();
+      queryClient.invalidateQueries({ queryKey: ["wishlists"] });
+    },
+    onError: (err: any) => toast.error(err.message || "更新失败"),
+  });
+
+  // 4. 删除心愿单 Mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/wishlists/${id}`),
+    onSuccess: () => {
+      toast.success("心愿单已删除");
+      queryClient.invalidateQueries({ queryKey: ["wishlists"] });
+    },
+    onError: (err: any) => toast.error(err.message || "删除失败"),
+  });
+
+  // 打开/关闭弹窗处理
+  const openCreateModal = () => {
+    setEditingItem(null);
+    setForm({ keyword: "", max_price: "" });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (item: Wishlist) => {
+    setEditingItem(item);
+    setForm({ keyword: item.keyword, max_price: item.max_price.toString() });
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingItem(null);
+  };
+
+  // 提交表单
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.keyword.trim()) return toast.error("请输入关键词");
+    if (!form.max_price || isNaN(Number(form.max_price))) return toast.error("请输入有效的预期价格");
+
+    const payload = {
+      keyword: form.keyword.trim(),
+      max_price: Number(form.max_price),
+    };
+
+    if (editingItem) {
+      updateMutation.mutate({ id: editingItem.id, data: { max_price: payload.max_price } });
+    } else {
+      createMutation.mutate(payload);
+    }
+  };
+
+  // 切换状态快捷操作
+  const toggleStatus = (item: Wishlist) => {
+    const newStatus = item.status === "active" ? "inactive" : "active";
+    updateMutation.mutate({ id: item.id, data: { status: newStatus } });
+  };
+
+  return (
+    <div className="min-h-screen bg-background pb-20">
+      {/* 顶部导航 */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.back()} className="rounded-full p-1.5 hover:bg-muted transition-colors text-lg leading-none">←</button>
+          <h1 className="font-bold text-lg">我的心愿单</h1>
+        </div>
+        <button 
+          onClick={openCreateModal}
+          className="flex items-center gap-1 bg-primary/10 text-primary px-3 py-1.5 rounded-full text-sm font-semibold hover:bg-primary/20 transition-colors"
+        >
+          <Plus size={16} /> 添加
+        </button>
+      </div>
+
+      {/* 心愿单列表 */}
+      <div className="p-4 space-y-4">
+        {isLoading ? (
+          <div className="text-center text-muted-foreground py-10">加载中...</div>
+        ) : wishlists.length === 0 ? (
+          <div className="text-center text-muted-foreground py-20 flex flex-col items-center gap-3">
+            <div className="bg-muted p-4 rounded-full"><Heart size={40} className="opacity-20" /></div>
+            <p>你还没有发布任何心愿单</p>
+            <button onClick={openCreateModal} className="mt-2 text-primary text-sm font-medium hover:underline">
+              立即发布一个
+            </button>
+          </div>
+        ) : (
+          wishlists.map((item) => (
+            <div key={item.id} className="bg-card border rounded-2xl p-4 shadow-sm flex flex-col gap-3 transition-opacity" style={{ opacity: item.status === 'inactive' ? 0.6 : 1 }}>
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-bold text-lg flex items-center gap-2">
+                    {item.keyword}
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border ${item.status === 'active' ? 'bg-green-50 text-green-600 border-green-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                      {item.status === 'active' ? '寻找中' : '已失效'}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    发布于 {new Date(item.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">预期最高价</p>
+                  <p className="text-lg font-bold text-primary">¥{item.max_price}</p>
+                </div>
+              </div>
+
+              {/* 操作底栏 */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-dashed mt-1">
+                <button 
+                  onClick={() => toggleStatus(item)}
+                  disabled={updateMutation.isPending}
+                  className="p-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors flex items-center gap-1 text-xs font-medium"
+                >
+                  {item.status === 'active' ? <><PowerOff size={14} /> 设为失效</> : <><Power size={14} /> 重新激活</>}
+                </button>
+                <button 
+                  onClick={() => openEditModal(item)}
+                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                >
+                  <Edit2 size={16} />
+                </button>
+                <button 
+                  onClick={() => {
+                    if (confirm("确定要删除这条心愿单吗？")) deleteMutation.mutate(item.id);
+                  }}
+                  disabled={deleteMutation.isPending}
+                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* 创建/编辑 弹窗 Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-background w-full max-w-sm rounded-3xl p-6 shadow-xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-bold">{editingItem ? "修改预期价格" : "发布新心愿单"}</h2>
+              <button onClick={closeModal} className="p-1 rounded-full hover:bg-muted text-muted-foreground">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">想寻找什么物品/技能？</label>
+                <input
+                  type="text"
+                  placeholder="例如：二手 iPad Pro"
+                  value={form.keyword}
+                  onChange={(e) => setForm({ ...form, keyword: e.target.value })}
+                  disabled={!!editingItem} // 编辑时通常不允许改关键词，只改价格或状态
+                  className="w-full rounded-xl border bg-muted/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
+                />
+              </div>
+              
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">你能接受的最高价格 (元)</label>
+                <input
+                  type="number"
+                  placeholder="例如：3000"
+                  value={form.max_price}
+                  onChange={(e) => setForm({ ...form, max_price: e.target.value })}
+                  className="w-full rounded-xl border bg-muted/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={createMutation.isPending || updateMutation.isPending}
+                className="w-full rounded-xl bg-primary py-3.5 mt-2 font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {createMutation.isPending || updateMutation.isPending ? "提交中..." : "确认保存"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+</file>
 
 <file path="components.json">
 {
@@ -2471,7 +3255,13 @@ export function useIsMobile() {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
 
 interface RequestOptions extends RequestInit {
-  params?: Record<string, string>;
+  params?: Record<string, string | number>;
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  error: { code: string; message: string } | null;
 }
 
 class ApiClient {
@@ -2481,20 +3271,18 @@ class ApiClient {
     this.baseURL = baseURL;
   }
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestOptions = {}
-  ): Promise<T> {
+  private async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const { params, headers, ...rest } = options;
-
     let url = `${this.baseURL}${endpoint}`;
+    
     if (params) {
-      const searchParams = new URLSearchParams(params);
+      const searchParams = new URLSearchParams(
+        Object.entries(params).map(([key, value]) => [key, String(value)])
+      );
       url += `?${searchParams.toString()}`;
     }
 
-    const token =
-      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
     const response = await fetch(url, {
       headers: {
@@ -2505,12 +3293,13 @@ class ApiClient {
       ...rest,
     });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new ApiError(response.status, error.message ?? "Request failed");
+    const json: ApiResponse<T> = await response.json().catch(() => ({}));
+
+    if (!response.ok || !json.success) {
+      throw new ApiError(response.status, json.error?.message ?? "请求失败", json.error?.code);
     }
 
-    return response.json();
+    return json.data;
   }
 
   get<T>(endpoint: string, options?: RequestOptions) {
@@ -2518,19 +3307,11 @@ class ApiClient {
   }
 
   post<T>(endpoint: string, data?: unknown, options?: RequestOptions) {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: "POST",
-      body: data ? JSON.stringify(data) : undefined,
-    });
+    return this.request<T>(endpoint, { ...options, method: "POST", body: data ? JSON.stringify(data) : undefined });
   }
 
-  put<T>(endpoint: string, data?: unknown, options?: RequestOptions) {
-    return this.request<T>(endpoint, {
-      ...options,
-      method: "PUT",
-      body: data ? JSON.stringify(data) : undefined,
-    });
+  patch<T>(endpoint: string, data?: unknown, options?: RequestOptions) {
+    return this.request<T>(endpoint, { ...options, method: "PATCH", body: data ? JSON.stringify(data) : undefined });
   }
 
   delete<T>(endpoint: string, options?: RequestOptions) {
@@ -2539,10 +3320,7 @@ class ApiClient {
 }
 
 export class ApiError extends Error {
-  constructor(
-    public status: number,
-    message: string
-  ) {
+  constructor(public status: number, message: string, public code?: string) {
     super(message);
     this.name = "ApiError";
   }
@@ -2674,7 +3452,9 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: "http://localhost:5000/api/:path*",
+
+        destination: "http://localhost:5001/:path*", 
+
       },
     ];
   },
@@ -2738,161 +3518,111 @@ export default nextConfig;
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { apiClient } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth-store";
+import { toast } from "sonner";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [form, setForm] = useState({
-    username: "",
-    email: "",
-    password: "",
-    confirmPassword: "",
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const setAuth = useAuthStore((s) => s.setAuth);
+  
+  const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ sustech_email: "", username: "", password: "", code: "" });
 
-  function validate() {
-    const errs: Record<string, string> = {};
-    if (!form.username) errs.username = "请输入用户名";
-    else if (form.username.length < 2) errs.username = "用户名至少 2 个字符";
-    if (!form.email) errs.email = "请输入邮箱";
-    else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = "邮箱格式不正确";
-    if (!form.password) errs.password = "请输入密码";
-    else if (form.password.length < 6) errs.password = "密码至少 6 位";
-    if (!form.confirmPassword) errs.confirmPassword = "请确认密码";
-    else if (form.password !== form.confirmPassword) errs.confirmPassword = "两次密码不一致";
-    return errs;
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSendCode(e: React.FormEvent) {
     e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
+    if (!form.sustech_email || !form.username || !form.password) {
+      toast.error("请填写完整信息");
       return;
     }
-    setErrors({});
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setLoading(false);
-    router.push("/marketplace");
+    try {
+      await apiClient.post("/auth/register", {
+        sustech_email: form.sustech_email,
+        username: form.username,
+        password: form.password,
+      });
+      toast.success("验证码已发送至邮箱（若未配置 SMTP 请查看后端控制台）");
+      setStep(2);
+    } catch (error: any) {
+      toast.error(error.message || "请求失败");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  const fields = [
-    {
-      key: "username",
-      label: "用户名",
-      type: "text",
-      placeholder: "给自己起个名字",
-    },
-    {
-      key: "email",
-      label: "邮箱",
-      type: "email",
-      placeholder: "your@mail.sustech.edu.cn",
-    },
-    {
-      key: "password",
-      label: "密码",
-      type: "password",
-      placeholder: "至少 6 位",
-    },
-    {
-      key: "confirmPassword",
-      label: "确认密码",
-      type: "password",
-      placeholder: "再输入一次",
-    },
-  ] as const;
-
-  const passwordStrength = (() => {
-    const p = form.password;
-    if (!p) return null;
-    if (p.length < 6) return { label: "太短", color: "bg-red-400", width: "w-1/4" };
-    if (p.length < 8) return { label: "一般", color: "bg-yellow-400", width: "w-2/4" };
-    if (/[A-Z]/.test(p) && /[0-9]/.test(p)) return { label: "强", color: "bg-green-500", width: "w-full" };
-    return { label: "中等", color: "bg-blue-400", width: "w-3/4" };
-  })();
+  async function handleVerify(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.code) return toast.error("请输入验证码");
+    
+    setLoading(true);
+    try {
+      const res = await apiClient.post<{ token: string; user: any }>("/auth/register/verify", {
+        sustech_email: form.sustech_email,
+        code: form.code,
+      });
+      setAuth(res.user, res.token);
+      toast.success("注册成功！");
+      router.push("/marketplace");
+    } catch (error: any) {
+      toast.error(error.message || "验证失败");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4">
       <div className="w-full max-w-sm">
-        {/* Logo area */}
         <div className="text-center mb-8">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-2xl font-bold shadow-lg mb-4">
-            市
-          </div>
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-2xl font-bold shadow-lg mb-4">市</div>
           <h1 className="text-2xl font-bold">SUSTech Market</h1>
-          <p className="text-muted-foreground text-sm mt-1">南科大校园社交交易平台</p>
         </div>
 
-        {/* Form card */}
         <div className="bg-card border rounded-3xl p-6 shadow-sm space-y-5">
-          <div className="space-y-1">
-            <h2 className="font-bold text-lg">创建账号</h2>
-            <p className="text-sm text-muted-foreground">加入南科大校园交易圈</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {fields.map(({ key, label, type, placeholder }) => (
-              <div key={key} className="space-y-1.5">
-                <label className="text-sm font-medium" htmlFor={key}>
-                  {label}
-                </label>
-                <input
-                  id={key}
-                  type={type}
-                  placeholder={placeholder}
-                  value={form[key]}
-                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                  className={`w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/30 ${
-                    errors[key] ? "border-destructive ring-2 ring-destructive/20" : ""
-                  }`}
-                />
-                {/* Password strength indicator */}
-                {key === "password" && passwordStrength && (
-                  <div className="space-y-1">
-                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                      <div className={`h-full rounded-full transition-all duration-300 ${passwordStrength.color} ${passwordStrength.width}`} />
-                    </div>
-                    <p className="text-xs text-muted-foreground">密码强度：{passwordStrength.label}</p>
-                  </div>
-                )}
-                {errors[key] && (
-                  <p className="text-xs text-destructive">{errors[key]}</p>
-                )}
-              </div>
-            ))}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  注册中...
-                </span>
-              ) : (
-                "注册"
-              )}
-            </button>
-          </form>
-
+          <h2 className="font-bold text-lg">{step === 1 ? "创建账号" : "输入验证码"}</h2>
+          
+          {step === 1 ? (
+            <form onSubmit={handleSendCode} className="space-y-4">
+              <input
+                type="text" placeholder="用户名" value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+                className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none"
+              />
+              <input
+                type="email" placeholder="南科大邮箱" value={form.sustech_email}
+                onChange={(e) => setForm({ ...form, sustech_email: e.target.value })}
+                className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none"
+              />
+              <input
+                type="password" placeholder="密码 (至少8位, 包含字母和数字)" value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none"
+              />
+              <button type="submit" disabled={loading} className="w-full rounded-xl bg-primary py-3 text-sm text-primary-foreground hover:opacity-90">
+                {loading ? "发送中..." : "获取验证码"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerify} className="space-y-4">
+              <p className="text-xs text-muted-foreground">已向 {form.sustech_email} 发送验证码</p>
+              <input
+                type="text" placeholder="6位验证码" value={form.code}
+                onChange={(e) => setForm({ ...form, code: e.target.value })}
+                className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none text-center tracking-widest font-mono text-lg"
+              />
+              <button type="submit" disabled={loading} className="w-full rounded-xl bg-primary py-3 text-sm text-primary-foreground hover:opacity-90">
+                {loading ? "验证中..." : "完成注册"}
+              </button>
+              <button type="button" onClick={() => setStep(1)} className="w-full text-xs text-muted-foreground hover:underline">返回上一步</button>
+            </form>
+          )}
+          
           <p className="text-center text-sm text-muted-foreground">
-            已有账号？{" "}
-            <Link href="/login" className="font-semibold text-primary hover:underline">
-              立即登录
-            </Link>
+            已有账号？ <Link href="/login" className="font-semibold text-primary hover:underline">立即登录</Link>
           </p>
         </div>
-
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          注册即表示你同意我们的服务条款和隐私政策
-        </p>
       </div>
     </div>
   );
@@ -2903,278 +3633,109 @@ export default function RegisterPage() {
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth-store";
 import { cn } from "@/lib/utils";
-
-interface Message {
-  id: number;
-  content: string;
-  sender: "me" | "other";
-  time: string;
-}
-
-interface Conversation {
-  id: number;
-  user: string;
-  initials: string;
-  item: string;
-  lastMessage: string;
-  time: string;
-  unread: number;
-  color: string;
-  messages: Message[];
-}
-
-const mockConversations: Conversation[] = [
-  {
-    id: 1,
-    user: "张同学",
-    initials: "张",
-    item: "机械键盘（青轴）",
-    lastMessage: "那个键盘还在吗？",
-    time: "10:23",
-    unread: 2,
-    color: "from-blue-400 to-blue-600",
-    messages: [
-      { id: 1, content: "你好，那个机械键盘还在卖吗？", sender: "other", time: "10:20" },
-      { id: 2, content: "在的！你什么时候方便过来看看？", sender: "me", time: "10:21" },
-      { id: 3, content: "那个键盘还在吗？能便宜一点吗", sender: "other", time: "10:23" },
-    ],
-  },
-  {
-    id: 2,
-    user: "李同学",
-    initials: "李",
-    item: "AirPods Pro 二代",
-    lastMessage: "好的，明天图书馆门口见！",
-    time: "昨天",
-    unread: 0,
-    color: "from-slate-400 to-slate-600",
-    messages: [
-      { id: 1, content: "AirPods Pro还有吗，1200能接受", sender: "other", time: "昨天 14:00" },
-      { id: 2, content: "可以，成色很好的，电量也还不错", sender: "me", time: "昨天 14:05" },
-      { id: 3, content: "好的，明天在哪里交易方便？", sender: "other", time: "昨天 14:10" },
-      { id: 4, content: "好的，明天图书馆门口见！", sender: "me", time: "昨天 14:12" },
-    ],
-  },
-  {
-    id: 3,
-    user: "王同学",
-    initials: "王",
-    item: "高数教材",
-    lastMessage: "谢谢！收到了，非常满意",
-    time: "周一",
-    unread: 0,
-    color: "from-amber-400 to-orange-500",
-    messages: [
-      { id: 1, content: "高数书还有吗", sender: "other", time: "周一 09:00" },
-      { id: 2, content: "还有一本，25元", sender: "me", time: "周一 09:10" },
-      { id: 3, content: "好的，荔园楼下可以吗", sender: "other", time: "周一 09:15" },
-      { id: 4, content: "可以，下午三点见", sender: "me", time: "周一 09:16" },
-      { id: 5, content: "谢谢！收到了，非常满意", sender: "other", time: "周一 15:20" },
-    ],
-  },
-  {
-    id: 4,
-    user: "陈同学",
-    initials: "陈",
-    item: "Nike跑鞋 42码",
-    lastMessage: "发图片看看？",
-    time: "周日",
-    unread: 1,
-    color: "from-red-400 to-rose-600",
-    messages: [
-      { id: 1, content: "那双Nike跑鞋是42码的吗", sender: "other", time: "周日 16:00" },
-      { id: 2, content: "对的，标准42码", sender: "me", time: "周日 16:05" },
-      { id: 3, content: "发图片看看？", sender: "other", time: "周日 16:06" },
-    ],
-  },
-];
 
 export default function ChatPage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [showThread, setShowThread] = useState(false); // mobile: show thread panel
   const [inputValue, setInputValue] = useState("");
-  const [conversations, setConversations] = useState(mockConversations);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+  const currentUser = useAuthStore(s => s.user);
 
-  const selected = conversations.find((c) => c.id === selectedId) ?? null;
+  // 获取会话列表
+  const { data: conversations = [] } = useQuery({
+    queryKey: ["conversations"],
+    queryFn: () => apiClient.get<any[]>("/conversations"),
+    refetchInterval: 5000, // 每 5 秒轮询一次刷新列表
+  });
+
+  // 获取选中会话的消息
+  const { data: chatData } = useQuery({
+    queryKey: ["messages", selectedId],
+    queryFn: () => apiClient.get<any>(`/conversations/${selectedId}/messages`),
+    enabled: !!selectedId,
+    refetchInterval: 3000, // 轮询拉取最新消息
+  });
+
+  // 发送消息
+  const sendMessageMutation = useMutation({
+    mutationFn: (content: string) => 
+      apiClient.post(`/conversations/${selectedId}/messages`, { content }),
+    onSuccess: () => {
+      setInputValue("");
+      queryClient.invalidateQueries({ queryKey: ["messages", selectedId] });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    }
+  });
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [selected?.messages.length]);
-
-  function handleSelect(conv: Conversation) {
-    setSelectedId(conv.id);
-    setShowThread(true);
-    // clear unread
-    setConversations((prev) =>
-      prev.map((c) => (c.id === conv.id ? { ...c, unread: 0 } : c))
-    );
-  }
-
-  function handleSend() {
-    if (!inputValue.trim() || !selectedId) return;
-    const now = new Date();
-    const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
-    const newMsg: Message = {
-      id: Date.now(),
-      content: inputValue.trim(),
-      sender: "me",
-      time: timeStr,
-    };
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === selectedId
-          ? { ...c, messages: [...c.messages, newMsg], lastMessage: inputValue.trim(), time: timeStr }
-          : c
-      )
-    );
-    setInputValue("");
-  }
+  }, [chatData?.messages?.length]);
 
   return (
     <div className="flex h-full overflow-hidden">
-      {/* Conversation list */}
-      <div
-        className={cn(
-          "flex flex-col border-r bg-background w-full md:w-80 shrink-0",
-          showThread ? "hidden md:flex" : "flex"
-        )}
-      >
-        <div className="px-4 py-3 border-b">
-          <h1 className="font-bold text-lg">消息</h1>
-        </div>
-
-        {conversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center flex-1 gap-3 text-muted-foreground py-12">
-            <span className="text-5xl">💬</span>
-            <p className="text-sm">暂无消息</p>
-          </div>
-        ) : (
-          <div className="overflow-y-auto flex-1">
-            {conversations.map((conv) => (
-              <button
-                key={conv.id}
-                onClick={() => handleSelect(conv)}
-                className={cn(
-                  "w-full flex items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/60",
-                  selectedId === conv.id && "bg-muted"
-                )}
-              >
-                {/* Avatar */}
-                <div className={`h-12 w-12 shrink-0 rounded-full bg-gradient-to-br ${conv.color} flex items-center justify-center text-white font-bold text-base relative`}>
-                  {conv.initials}
-                  {conv.unread > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 h-5 w-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center font-bold">
-                      {conv.unread}
-                    </span>
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="font-semibold text-sm">{conv.user}</span>
-                    <span className="text-xs text-muted-foreground shrink-0">{conv.time}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate">{conv.item}</p>
-                  <p className={cn("text-sm truncate mt-0.5", conv.unread > 0 ? "font-medium" : "text-muted-foreground")}>
-                    {conv.lastMessage}
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Message thread */}
-      <div
-        className={cn(
-          "flex flex-col flex-1 bg-background",
-          !showThread ? "hidden md:flex" : "flex"
-        )}
-      >
-        {selected ? (
-          <>
-            {/* Thread header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b bg-background/95 backdrop-blur-sm">
-              <button
-                className="md:hidden rounded-full p-1.5 hover:bg-muted transition-colors text-lg leading-none"
-                onClick={() => setShowThread(false)}
-              >
-                ←
-              </button>
-              <div className={`h-9 w-9 rounded-full bg-gradient-to-br ${selected.color} flex items-center justify-center text-white font-bold text-sm`}>
-                {selected.initials}
+      {/* 左侧会话列表 */}
+      <div className="flex flex-col border-r bg-background w-full md:w-80 shrink-0">
+        <div className="px-4 py-3 border-b"><h1 className="font-bold text-lg">消息</h1></div>
+        <div className="overflow-y-auto flex-1">
+          {conversations.map((conv) => (
+            <button
+              key={conv.id}
+              onClick={() => setSelectedId(conv.id)}
+              className={cn("w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/60 border-b", selectedId === conv.id && "bg-muted")}
+            >
+              <div className="h-10 w-10 shrink-0 rounded-full bg-primary/20 flex items-center justify-center font-bold">
+                {conv.seller_id === currentUser?.id ? "买" : "卖"}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm">{selected.user}</p>
-                <p className="text-xs text-muted-foreground truncate">{selected.item}</p>
+                <p className="text-xs text-muted-foreground truncate">商品 ID: {conv.item_id}</p>
+                <p className="text-sm truncate mt-0.5">{conv.last_message || "暂无消息"}</p>
               </div>
-            </div>
+            </button>
+          ))}
+        </div>
+      </div>
 
-            {/* Messages */}
+      {/* 右侧聊天区域 */}
+      <div className="flex flex-col flex-1 bg-background">
+        {selectedId && chatData ? (
+          <>
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-              {selected.messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={cn("flex", msg.sender === "me" ? "justify-end" : "justify-start")}
-                >
-                  <div className="max-w-[72%] space-y-1">
-                    <div
-                      className={cn(
-                        "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
-                        msg.sender === "me"
-                          ? "bg-primary text-primary-foreground rounded-tr-sm"
-                          : "bg-muted rounded-tl-sm"
-                      )}
-                    >
+              {chatData.messages.map((msg: any) => {
+                const isMe = msg.sender_id === currentUser?.id;
+                return (
+                  <div key={msg.id} className={cn("flex", isMe ? "justify-end" : "justify-start")}>
+                    <div className={cn("rounded-2xl px-4 py-2.5 text-sm", isMe ? "bg-primary text-primary-foreground" : "bg-muted")}>
                       {msg.content}
                     </div>
-                    <p className={cn("text-[10px] text-muted-foreground", msg.sender === "me" ? "text-right" : "text-left")}>
-                      {msg.time}
-                    </p>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               <div ref={messagesEndRef} />
             </div>
-
-            {/* Input */}
-            <div className="border-t px-4 py-3 flex gap-2 items-end bg-background">
-              <textarea
-                rows={1}
-                placeholder="输入消息..."
+            <div className="border-t px-4 py-3 flex gap-2">
+              <input
+                type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-                className="flex-1 resize-none rounded-xl bg-muted px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-ring/40 transition-all max-h-32"
+                onKeyDown={(e) => e.key === "Enter" && sendMessageMutation.mutate(inputValue)}
+                className="flex-1 rounded-xl bg-muted px-4 outline-none"
+                placeholder="输入消息..."
               />
-              <button
-                onClick={handleSend}
-                disabled={!inputValue.trim()}
-                className="shrink-0 h-10 w-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 hover:opacity-90 active:scale-95 transition-all"
+              <button 
+                onClick={() => sendMessageMutation.mutate(inputValue)}
+                disabled={!inputValue.trim() || sendMessageMutation.isPending}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-xl"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m22 2-7 20-4-9-9-4z" /><path d="M22 2 11 13" />
-                </svg>
+                发送
               </button>
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-muted-foreground">
-            <span className="text-7xl">💬</span>
-            <div className="text-center">
-              <p className="font-medium">选择一个对话</p>
-              <p className="text-sm mt-1">与卖家/买家沟通交易详情</p>
-            </div>
-          </div>
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">选择一个对话</div>
         )}
       </div>
     </div>
@@ -3416,149 +3977,76 @@ CLAUDE.md
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { apiClient } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth-store";
+import { toast } from "sonner"; // 引入 sonner 提示组件
 
 export default function LoginPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ email: "", password: "" });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const setAuth = useAuthStore((s) => s.setAuth);
+  const [form, setForm] = useState({ sustech_email: "", password: "" });
   const [loading, setLoading] = useState(false);
-
-  function validate() {
-    const errs: Record<string, string> = {};
-    if (!form.email) errs.email = "请输入邮箱";
-    else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = "邮箱格式不正确";
-    if (!form.password) errs.password = "请输入密码";
-    else if (form.password.length < 6) errs.password = "密码至少 6 位";
-    return errs;
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const errs = validate();
-    if (Object.keys(errs).length > 0) {
-      setErrors(errs);
+    if (!form.sustech_email || !form.password) {
+      toast.error("请填写邮箱和密码");
       return;
     }
-    setErrors({});
+    
     setLoading(true);
-    // Simulate login
-    await new Promise((r) => setTimeout(r, 800));
-    setLoading(false);
-    router.push("/marketplace");
+    try {
+      const res = await apiClient.post<{ token: string; user: any }>("/auth/login", form);
+      setAuth(res.user, res.token);
+      toast.success("登录成功");
+      router.push("/marketplace");
+    } catch (error: any) {
+      toast.error(error.message || "登录失败");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4">
       <div className="w-full max-w-sm">
-        {/* Logo area */}
         <div className="text-center mb-8">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-2xl font-bold shadow-lg mb-4">
-            市
-          </div>
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-2xl font-bold shadow-lg mb-4">市</div>
           <h1 className="text-2xl font-bold">SUSTech Market</h1>
-          <p className="text-muted-foreground text-sm mt-1">南科大校园社交交易平台</p>
         </div>
-
-        {/* Form card */}
         <div className="bg-card border rounded-3xl p-6 shadow-sm space-y-5">
           <div className="space-y-1">
             <h2 className="font-bold text-lg">登录账号</h2>
-            <p className="text-sm text-muted-foreground">欢迎回来！</p>
           </div>
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium" htmlFor="email">
-                邮箱
-              </label>
+              <label className="text-sm font-medium">南科大邮箱</label>
               <input
-                id="email"
                 type="email"
                 placeholder="your@mail.sustech.edu.cn"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className={`w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/30 ${
-                  errors.email ? "border-destructive ring-2 ring-destructive/20" : ""
-                }`}
+                value={form.sustech_email}
+                onChange={(e) => setForm({ ...form, sustech_email: e.target.value })}
+                className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/30"
               />
-              {errors.email && (
-                <p className="text-xs text-destructive">{errors.email}</p>
-              )}
             </div>
-
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium" htmlFor="password">
-                  密码
-                </label>
-                <button type="button" className="text-xs text-primary hover:underline">
-                  忘记密码？
-                </button>
-              </div>
+              <label className="text-sm font-medium">密码</label>
               <input
-                id="password"
                 type="password"
                 placeholder="••••••••"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className={`w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/30 ${
-                  errors.password ? "border-destructive ring-2 ring-destructive/20" : ""
-                }`}
+                className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/30"
               />
-              {errors.password && (
-                <p className="text-xs text-destructive">{errors.password}</p>
-              )}
             </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  登录中...
-                </span>
-              ) : (
-                "登录"
-              )}
+            <button type="submit" disabled={loading} className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60">
+              {loading ? "登录中..." : "登录"}
             </button>
           </form>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="bg-card px-3 text-xs text-muted-foreground">或</span>
-            </div>
-          </div>
-
           <p className="text-center text-sm text-muted-foreground">
-            还没有账号？{" "}
-            <Link href="/register" className="font-semibold text-primary hover:underline">
-              立即注册
-            </Link>
+            还没有账号？ <Link href="/register" className="font-semibold text-primary hover:underline">立即注册</Link>
           </p>
-
-          {/* 新增：管理员后台入口 */}
-          <div className="mt-4 pt-4 border-t text-center">
-            <Link 
-              href="/admin/users" 
-              className="text-xs text-muted-foreground/60 hover:text-red-500 transition-colors flex items-center justify-center gap-1"
-            >
-              <span>🛡️</span> 进入管理员后台 (Admin Demo)
-            </Link>
-          </div>
         </div>
-
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          登录即表示你同意我们的服务条款和隐私政策
-        </p>
       </div>
     </div>
   );
@@ -3835,216 +4323,276 @@ export default function MapPage() {
 <file path="src/app/marketplace/[id]/page.tsx">
 "use client";
 
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth-store";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Package, Zap } from "lucide-react"; // 引入图标区分类型
-
-// --- 1. 使用最新的数据结构 ---
-interface MarketItem {
-  id: string;
-  title: string;
-  price: number;
-  originalPrice?: number;
-  unit?: string;          // 新增：单位
-  condition: string;
-  seller: string;
-  sellerAvatar?: string;  // 兼容旧数据，设为可选或补全
-  sellerRating?: number;
-  sellerDeals?: number;
-  time: string;
-  category: string;
-  location: string;
-  gradient: string;
-  emoji: string;
-  description?: string;   // 兼容
-  type: 'goods' | 'skill'; // 新增：类型
-}
-
-// 补全后的 Mock 数据（合并了详情页需要的 description 字段）
-const mockItems: MarketItem[] = [
-  // --- 闲置物品 (Goods) ---
-  { id: "1",  title: "高等数学教材（第七版）",     price: 25,   originalPrice: 45,   condition: "九成新",   seller: "张同学", sellerAvatar: "张", sellerRating: 4.9, sellerDeals: 12, time: "2小时前", category: "书籍教材", location: "荔园",   gradient: "from-blue-400 to-blue-600",     emoji: "📚", type: 'goods', description: "同济版高数上下册，笔记不多，内容清晰。考完研不再需要，价格实惠。自提或可约图书馆门口交易。" },
-  { id: "2",  title: "AirPods Pro 二代",           price: 1200, originalPrice: 1999, condition: "八成新",   seller: "李同学", sellerAvatar: "李", sellerRating: 5.0, sellerDeals: 8,  time: "5小时前", category: "电子产品", location: "工学院", gradient: "from-slate-400 to-slate-600",   emoji: "🎧", type: 'goods', description: "Apple AirPods Pro 第二代，含原装充电盒及数据线。电池健康度92%，降噪效果依旧出色。仅因换了其他耳机出售。" },
-  { id: "3",  title: "宿舍护眼台灯",               price: 35,   originalPrice: 89,   condition: "全新未拆", seller: "王同学", sellerAvatar: "王", sellerRating: 4.8, sellerDeals: 5,  time: "1天前",   category: "生活用品", location: "南园",   gradient: "from-amber-400 to-orange-500",  emoji: "💡", type: 'goods', description: "小米全光谱护眼台灯，全新未拆封，收到礼物但已有同款。支持多档调光，USB充电。" },
-  { id: "4",  title: "Nike跑鞋 42码",              price: 180,  originalPrice: 560,  condition: "七成新",   seller: "陈同学", sellerAvatar: "陈", sellerRating: 4.7, sellerDeals: 3,  time: "1天前",   category: "服装",     location: "体育馆", gradient: "from-red-400 to-rose-600",      emoji: "👟", type: 'goods', description: "Nike Air Zoom Pegasus 40，42码，黑白配色。日常训练用，鞋面干净，鞋底磨损正常。因脚型不合出售。" },
-  { id: "5",  title: "机械键盘（青轴）",           price: 220,  originalPrice: 380,  condition: "九成新",   seller: "刘同学", sellerAvatar: "刘", sellerRating: 4.9, sellerDeals: 20, time: "2天前",   category: "电子产品", location: "理学院", gradient: "from-emerald-400 to-green-600", emoji: "⌨️", type: 'goods', description: "IKBC C87机械键盘，87键布局，青轴，PBT双色键帽，打字手感极佳。附赠原装键帽拔键器。" },
-  
-  // --- 技能服务 (Skills) ---
-  { id: "s1", title: "Python 数据分析辅导",        price: 50,   unit: "/小时",       condition: "专业",     seller: "极客社", sellerAvatar: "极", sellerRating: 5.0, sellerDeals: 30, time: "1小时前", category: "学业辅导", location: "线上",   gradient: "from-yellow-400 to-amber-600",  emoji: "🐍", type: 'skill', description: "计算机系大神一对一辅导，擅长Pandas、NumPy、Matplotlib。从入门到大作业指导，包教包会。" },
-  { id: "s2", title: "校园人像摄影/毕业照",        price: 88,   unit: "/组",         condition: "接单中",   seller: "摄影协", sellerAvatar: "摄", sellerRating: 4.9, sellerDeals: 15, time: "3小时前", category: "摄影设计", location: "校内",   gradient: "from-pink-400 to-rose-600",     emoji: "📸", type: 'skill', description: "南科大摄影协会资深摄影师，索尼A7M4设备。包含前期沟通、拍摄1小时及后期精修9张。风格清新自然。" },
-  { id: "s3", title: "PPT 美化设计/答辩排版",      price: 30,   unit: "/份",         condition: "加急",     seller: "设计系", sellerAvatar: "设", sellerRating: 4.8, sellerDeals: 42, time: "1天前",   category: "摄影设计", location: "线上",   gradient: "from-cyan-400 to-blue-600",     emoji: "🎨", type: 'skill', description: "专业PPT设计，针对课程展示、毕业答辩等场景。提供逻辑梳理、排版美化、图表制作服务。急单可接。" },
-  { id: "s4", title: "吉他入门教学（一对一）",      price: 60,   unit: "/课时",       condition: "周末",     seller: "音乐社", sellerAvatar: "音", sellerRating: 5.0, sellerDeals: 8,  time: "2天前",   category: "才艺教学", location: "琴房",   gradient: "from-orange-400 to-red-500",    emoji: "🎸", type: 'skill', description: "民谣吉他零基础入门，手把手教学。教你识谱、按弦、扫弦，三节课学会弹唱《成都》。" },
-  { id: "s5", title: "跑腿/代取快递",              price: 5,    unit: "/次",         condition: "空闲",     seller: "王跑跑", sellerAvatar: "跑", sellerRating: 4.7, sellerDeals: 100,time: "10分前",  category: "生活服务", location: "北园",   gradient: "from-green-400 to-teal-500",    emoji: "🏃", type: 'skill', description: "北园区域代取快递、外卖。风雨无阻，诚信服务。大件物品需额外加价。" },
-];
-
-// 扩展状态颜色，支持技能状态
-const conditionColors: Record<string, string> = {
-  // 物品状态
-  "全新":     "bg-green-100 text-green-700",
-  "全新未拆": "bg-green-100 text-green-700",
-  "九成新":   "bg-blue-100 text-blue-700",
-  "八成新":   "bg-yellow-100 text-yellow-700",
-  "七成新":   "bg-orange-100 text-orange-700",
-  // 技能状态
-  "专业":     "bg-purple-100 text-purple-700",
-  "接单中":   "bg-blue-100 text-blue-700",
-  "加急":     "bg-red-100 text-red-700",
-  "周末":     "bg-orange-100 text-orange-700",
-  "空闲":     "bg-green-100 text-green-700",
-};
+import { Package, Zap, MapPin, Clock, Truck, ShieldCheck, X, Edit, Trash2 } from "lucide-react";
 
 export default function ItemDetailPage() {
-  const params = useParams();
+  const { id } = useParams();
   const router = useRouter();
-  const id = params.id as string;
-  const item = mockItems.find((i) => i.id === id);
+  const queryClient = useQueryClient();
+  const currentUser = useAuthStore((s) => s.user);
 
-  if (!item) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-muted-foreground">
-        <span className="text-6xl">🔍</span>
-        <p className="text-lg font-medium">商品不存在或已下架</p>
-        <Link href="/marketplace">
-          <Button variant="outline">返回市场</Button>
-        </Link>
-      </div>
-    );
-  }
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [orderForm, setOrderForm] = useState({ price: "", note: "" });
 
-  // 判断是否为技能类型
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ price: "", description: "", location_text: "" });
+
+  const { data: item, isLoading: isItemLoading } = useQuery({
+    queryKey: ["item", id],
+    queryFn: () => apiClient.get<any>(`/items/${id}`),
+  });
+
+  const { data: seller, isLoading: isSellerLoading } = useQuery({
+    queryKey: ["user", item?.owner_id],
+    queryFn: () => apiClient.get<any>(`/users/${item?.owner_id}`),
+    enabled: !!item?.owner_id,
+  });
+
+  const chatMutation = useMutation({
+    mutationFn: () => apiClient.post<{ id: number }>("/conversations", {
+      item_id: item?.id,
+      seller_id: item?.owner_id,
+    }),
+    onSuccess: (data) => {
+      toast.success("已创建聊天会话");
+      router.push(`/chat?conversationId=${data.id}`);
+    },
+    onError: (err: any) => toast.error(err.message || "无法发起聊天"),
+  });
+
+  const orderMutation = useMutation({
+    mutationFn: (payload: { item_id: number; price: number; note: string }) => 
+      apiClient.post<{ id: number }>("/orders", payload),
+    onSuccess: (data) => {
+      toast.success("下单成功！");
+      setIsOrderModalOpen(false);
+      router.push(`/orders/${data.id}`);
+    },
+    onError: (err: any) => toast.error(err.message || "下单失败"),
+  });
+
+  const updateItemMutation = useMutation({
+    mutationFn: (payload: any) => apiClient.patch(`/items/${item?.id}`, payload),
+    onSuccess: () => {
+      toast.success("商品信息已更新");
+      setIsEditModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["item", id] });
+    },
+    onError: (err: any) => toast.error(err.message || "更新失败"),
+  });
+
+  const deleteItemMutation = useMutation({
+    mutationFn: () => apiClient.delete(`/items/${item?.id}`),
+    onSuccess: () => {
+      toast.success("商品已删除");
+      router.replace("/marketplace");
+    },
+    onError: (err: any) => toast.error(err.message || "删除失败"),
+  });
+
+  const handleOpenOrderModal = () => {
+    setOrderForm({ price: item.price.toString(), note: "" });
+    setIsOrderModalOpen(true);
+  };
+
+  const submitOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orderForm.price || isNaN(Number(orderForm.price))) return toast.error("请输入有效价格");
+    orderMutation.mutate({
+      item_id: item.id,
+      price: Number(orderForm.price),
+      note: orderForm.note.trim()
+    });
+  };
+
+  const handleOpenEditModal = () => {
+    setEditForm({ 
+      price: item.price.toString(), 
+      description: item.description || "", 
+      location_text: item.location_text || "" 
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const submitEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateItemMutation.mutate({
+      price: Number(editForm.price),
+      description: editForm.description,
+      location_text: editForm.location_text
+    });
+  };
+
+  const handleDelete = () => {
+    if (confirm("确定要永久删除这个商品吗？该操作不可恢复。")) {
+      deleteItemMutation.mutate();
+    }
+  };
+
+  if (isItemLoading) return <div className="p-10 text-center">加载商品信息中...</div>;
+  if (!item) return <div className="p-10 text-center">商品不存在或已删除</div>;
+
   const isSkill = item.type === 'skill';
+  const isOwner = currentUser?.id === item.owner_id;
 
   return (
-    <div className="min-h-screen max-w-2xl mx-auto bg-background pb-20">
-      {/* Back button */}
+    <div className="min-h-screen max-w-2xl mx-auto bg-background pb-24 relative">
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-3 flex items-center gap-3">
-        <button
-          onClick={() => router.back()}
-          className="rounded-full p-1.5 hover:bg-muted transition-colors text-lg leading-none"
-          aria-label="返回"
-        >
-          ←
-        </button>
-        <span className="font-semibold text-sm truncate flex-1">{item.title}</span>
-        {/* 顶部简单的类型标记 */}
-        {isSkill ? (
-            <Zap className="w-4 h-4 text-purple-600" />
+        <button onClick={() => router.back()} className="rounded-full p-1.5 hover:bg-muted text-lg leading-none">←</button>
+        <span className="font-semibold text-sm truncate flex-1">{isSkill ? "技能服务详情" : "闲置物品详情"}</span>
+      </div>
+
+      <div className="w-full aspect-square md:aspect-video bg-muted flex items-center justify-center relative">
+        {item.cover_images?.[0] ? (
+          <img src={item.cover_images[0]} alt={item.title} className="w-full h-full object-cover" />
         ) : (
-            <Package className="w-4 h-4 text-blue-600" />
+          <div className="text-muted-foreground opacity-50 flex flex-col items-center"><Package size={48} /></div>
+        )}
+        {item.status !== 'active' && (
+          <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center">
+             <span className="px-6 py-2 bg-black/80 text-white font-bold rounded-full text-lg tracking-widest rotate-[-15deg]">
+               已{item.status === 'sold' ? '售出' : '下架'}
+             </span>
+          </div>
         )}
       </div>
 
-      {/* Product image area */}
-      <div className={`w-full aspect-video bg-gradient-to-br ${item.gradient} flex items-center justify-center relative`}>
-        <span className="text-8xl drop-shadow-lg transform hover:scale-110 transition-transform duration-300">{item.emoji}</span>
-        {/* 类型角标 */}
-        <div className={`absolute bottom-4 left-4 px-3 py-1 rounded-full text-xs font-bold text-white shadow-sm flex items-center gap-1 ${
-            isSkill ? 'bg-purple-500/90' : 'bg-blue-500/90'
-        }`}>
-            {isSkill ? <Zap size={12} fill="currentColor" /> : <Package size={12} />}
-            {isSkill ? "技能服务" : "闲置物品"}
-        </div>
-      </div>
-
       <div className="p-4 space-y-6">
-        {/* Title & price */}
         <div className="space-y-3">
-          <div className="flex items-start justify-between gap-2">
-            <h1 className="text-2xl font-bold leading-snug flex-1 text-foreground">{item.title}</h1>
-            <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${conditionColors[item.condition] ?? "bg-muted text-muted-foreground"}`}>
-              {item.condition}
-            </span>
-          </div>
-          
+          <h1 className="text-2xl font-bold leading-snug">{item.title}</h1>
           <div className="flex items-end gap-2">
-            <div className="flex items-baseline">
-                <span className="text-3xl font-bold text-primary">
-                    {item.price > 0 ? `¥${item.price}` : '免费'}
-                </span>
-                {isSkill && <span className="text-lg text-muted-foreground ml-0.5">{item.unit}</span>}
-            </div>
-
-            {item.originalPrice && (
-              <>
-                <span className="text-sm text-muted-foreground line-through mb-1 ml-1">
-                    {isSkill ? "参考价 " : "原价 "}¥{item.originalPrice}
-                </span>
-                <span className="text-xs text-green-600 font-bold bg-green-50 px-1.5 py-0.5 rounded mb-1.5">
-                  {isSkill ? '优惠' : '省'} ¥{item.originalPrice - item.price}
-                </span>
-              </>
-            )}
+            <span className="text-3xl font-bold text-primary">¥{item.price}</span>
+            <span className="text-sm text-muted-foreground mb-1">({item.price_mode === 'negotiable' ? '可小刀' : '一口价'})</span>
           </div>
         </div>
 
-        {/* Meta info grid */}
         <div className="grid grid-cols-2 gap-3 text-sm">
-          {[
-            { label: "分类", value: item.category },
-            { label: isSkill ? "服务方式" : "交易地点", value: item.location },
-            { label: "发布时间", value: item.time },
-          ].map(({ label, value }) => (
-            <div key={label} className="bg-muted/50 rounded-xl p-3 border border-border/50">
-              <p className="text-xs text-muted-foreground mb-1">{label}</p>
-              <p className="font-medium text-foreground">{value}</p>
+          <div className="bg-muted/50 rounded-xl p-3 border flex items-start gap-2">
+            <MapPin className="w-4 h-4 mt-0.5 text-muted-foreground" />
+            <div>
+              <p className="text-xs text-muted-foreground">交易地点</p>
+              <p className="font-medium">{item.location_text || "未填写"}</p>
             </div>
-          ))}
-          <div className="bg-muted/50 rounded-xl p-3 border border-border/50">
-            <p className="text-xs text-muted-foreground mb-1">{isSkill ? "当前状态" : "成色"}</p>
-            <p className="font-medium text-foreground">{item.condition}</p>
+          </div>
+          <div className="bg-muted/50 rounded-xl p-3 border flex items-start gap-2">
+            <Clock className="w-4 h-4 mt-0.5 text-muted-foreground" />
+            <div>
+              <p className="text-xs text-muted-foreground">发布时间</p>
+              <p className="font-medium">{new Date(item.created_at).toLocaleDateString()}</p>
+            </div>
           </div>
         </div>
 
-        {/* Description */}
         <div className="space-y-2">
-          <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-              {isSkill ? "服务详情" : "商品描述"}
-          </h2>
-          <div className="text-sm leading-relaxed bg-muted/30 rounded-xl p-4 border border-border/50 text-foreground/90 whitespace-pre-wrap">
-              {item.description || "暂无详细描述..."}
+          <h2 className="font-semibold text-sm text-muted-foreground uppercase">详细描述</h2>
+          <div className="text-sm leading-relaxed bg-muted/30 rounded-xl p-4 border whitespace-pre-wrap">
+            {item.description || "卖家没有留下详细描述。"}
           </div>
         </div>
 
-        {/* Seller info */}
         <div className="border rounded-2xl p-4 space-y-3 bg-card shadow-sm">
-          <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">卖家信息</h2>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center text-lg font-bold text-primary">
-                {item.sellerAvatar || item.seller.charAt(0)}
-              </div>
-              <div>
-                <p className="font-semibold">{item.seller}</p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                  <span className="flex items-center text-amber-500">
-                      ⭐ {item.sellerRating || 5.0}
-                  </span>
-                  <span>·</span>
-                  <span>已成交 {item.sellerDeals || 0} 笔</span>
+          <h2 className="font-semibold text-sm text-muted-foreground uppercase">卖家信息</h2>
+          {isSellerLoading ? <div className="animate-pulse h-12 bg-muted rounded-xl" /> : seller && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary overflow-hidden">
+                  {seller.avatar_url ? <img src={seller.avatar_url} className="w-full h-full object-cover" /> : seller.username.charAt(0)}
+                </div>
+                <div>
+                  <p className="font-semibold">{seller.username}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">信誉分: {isSkill ? seller.reputation_skill : seller.reputation_trade}</p>
                 </div>
               </div>
+              <Link href={`/profile/${seller.id}`}>
+                <Button size="sm" variant="outline" className="rounded-xl h-8">查看主页</Button>
+              </Link>
             </div>
-            <Link href="/chat">
-              <Button size="sm" variant="outline" className="rounded-xl">查看主页</Button>
-            </Link>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Sticky bottom action */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md border-t p-4 flex gap-3 max-w-2xl mx-auto z-50">
-        <button className="flex-1 rounded-xl border bg-background hover:bg-muted transition-colors text-sm font-semibold flex items-center justify-center gap-2">
-          <span>❤️</span> 收藏
-        </button>
-        <Link href="/chat" className="flex-[2]">
-          <Button className={`w-full py-6 rounded-xl font-bold text-base shadow-lg ${
-              isSkill ? 'bg-purple-600 hover:bg-purple-700' : ''
-          }`}>
-            💬 {isSkill ? "预约服务" : "联系卖家"}
-          </Button>
-        </Link>
+      <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md border-t p-4 flex gap-3 max-w-2xl mx-auto z-40">
+        {isOwner ? (
+          <>
+            <Button variant="outline" className="flex-1 rounded-xl h-12 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={handleDelete} disabled={deleteItemMutation.isPending}>
+              <Trash2 className="w-4 h-4 mr-2" /> 删除商品
+            </Button>
+            <Button className="flex-1 rounded-xl h-12" onClick={handleOpenEditModal}>
+              <Edit className="w-4 h-4 mr-2" /> 修改信息
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button variant="outline" className="flex-1 rounded-xl h-12" onClick={() => chatMutation.mutate()} disabled={chatMutation.isPending || item.status !== 'active'}>
+              💬 聊一聊
+            </Button>
+            <Button className="flex-[2] rounded-xl font-bold h-12" onClick={handleOpenOrderModal} disabled={item.status !== 'active'}>
+              {item.status !== 'active' ? "商品不可售" : "立即下单"}
+            </Button>
+          </>
+        )}
       </div>
+
+      {isOrderModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-background w-full max-w-md rounded-3xl p-6 shadow-xl animate-in slide-in-from-bottom-10 sm:zoom-in-95">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">确认下单信息</h2>
+              <button onClick={() => setIsOrderModalOpen(false)}><X size={20}/></button>
+            </div>
+            <form onSubmit={submitOrder} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">协商价格 (元)</label>
+                <input type="number" value={orderForm.price} onChange={e => setOrderForm({...orderForm, price: e.target.value})} className="w-full rounded-xl border bg-muted/50 px-4 py-3 outline-none focus:ring-2 focus:ring-primary/30" />
+                <p className="text-xs text-muted-foreground">如果已与卖家商议好价格，请在此修改。</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">给卖家的留言 (选填)</label>
+                <textarea value={orderForm.note} onChange={e => setOrderForm({...orderForm, note: e.target.value})} rows={3} placeholder="例如：明天中午荔园二食堂当面交易" className="w-full rounded-xl border bg-muted/50 px-4 py-3 outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+              </div>
+              <Button type="submit" className="w-full h-12 rounded-xl font-bold mt-2" disabled={orderMutation.isPending}>
+                {orderMutation.isPending ? "提交中..." : "确认生成订单"}
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-background w-full max-w-md rounded-3xl p-6 shadow-xl animate-in zoom-in-95">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">修改商品信息</h2>
+              <button onClick={() => setIsEditModalOpen(false)}><X size={20}/></button>
+            </div>
+            <form onSubmit={submitEdit} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">价格 (元)</label>
+                <input type="number" value={editForm.price} onChange={e => setEditForm({...editForm, price: e.target.value})} className="w-full rounded-xl border px-4 py-3 outline-none" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">交易地点</label>
+                <input type="text" value={editForm.location_text} onChange={e => setEditForm({...editForm, location_text: e.target.value})} className="w-full rounded-xl border px-4 py-3 outline-none" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">商品描述</label>
+                <textarea value={editForm.description} onChange={e => setEditForm({...editForm, description: e.target.value})} rows={4} className="w-full rounded-xl border px-4 py-3 outline-none resize-none" />
+              </div>
+              <Button type="submit" className="w-full h-12 rounded-xl font-bold" disabled={updateItemMutation.isPending}>
+                {updateItemMutation.isPending ? "保存中..." : "保存修改"}
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -4053,297 +4601,98 @@ export default function ItemDetailPage() {
 <file path="src/app/marketplace/page.tsx">
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { 
-  Sparkles, 
-  ShoppingBag, 
-  GraduationCap, 
-  Search, 
-  Plus, 
-  X, 
-  Package, 
-  Zap 
-} from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { ShoppingBag, GraduationCap, Search, Plus, Package } from "lucide-react";
 
-// --- 1. 定义数据接口与 Mock 数据 ---
-
-interface MarketItem {
-  id: string;
+interface Item {
+  id: number;
+  type: string;
   title: string;
   price: number;
-  originalPrice?: number;
-  unit?: string;
-  condition: string;
-  seller: string;
-  time: string;
-  category: string;
-  location: string;
-  gradient: string;
-  emoji: string;
-  type: 'goods' | 'skill';
+  condition?: string;
+  location_text?: string;
+  created_at: string;
+  cover_images: string[];
 }
 
-const mockItems: MarketItem[] = [
-  // --- 闲置物品 (Goods) ---
-  { id: "1",  title: "高等数学教材（第七版）",     price: 25,   originalPrice: 45,   condition: "九成新",   seller: "张同学", time: "2小时前", category: "书籍教材", location: "荔园",   gradient: "from-blue-400 to-blue-600",     emoji: "📚", type: 'goods' },
-  { id: "2",  title: "AirPods Pro 二代",           price: 1200, originalPrice: 1999, condition: "八成新",   seller: "李同学", time: "5小时前", category: "电子产品", location: "工学院", gradient: "from-slate-400 to-slate-600",   emoji: "🎧", type: 'goods' },
-  { id: "3",  title: "宿舍护眼台灯",               price: 35,   originalPrice: 89,   condition: "全新未拆", seller: "王同学", time: "1天前",   category: "生活用品", location: "南园",   gradient: "from-amber-400 to-orange-500",  emoji: "💡", type: 'goods' },
-  { id: "4",  title: "Nike跑鞋 42码",              price: 180,  originalPrice: 560,  condition: "七成新",   seller: "陈同学", time: "1天前",   category: "服装",     location: "体育馆", gradient: "from-red-400 to-rose-600",      emoji: "👟", type: 'goods' },
-  { id: "5",  title: "机械键盘（青轴）",           price: 220,  originalPrice: 380,  condition: "九成新",   seller: "刘同学", time: "2天前",   category: "电子产品", location: "理学院", gradient: "from-emerald-400 to-green-600", emoji: "⌨️", type: 'goods' },
-  
-  // --- 技能服务 (Skills) ---
-  { id: "s1", title: "Python 数据分析辅导",        price: 50,   unit: "/小时",       condition: "专业",     seller: "极客社", time: "1小时前", category: "学业辅导", location: "线上",   gradient: "from-yellow-400 to-amber-600",  emoji: "🐍", type: 'skill' },
-  { id: "s2", title: "校园人像摄影/毕业照",        price: 88,   unit: "/组",         condition: "接单中",   seller: "摄影协", time: "3小时前", category: "摄影设计", location: "校内",   gradient: "from-pink-400 to-rose-600",     emoji: "📸", type: 'skill' },
-  { id: "s3", title: "PPT 美化设计/答辩排版",      price: 30,   unit: "/份",         condition: "加急",     seller: "设计系", time: "1天前",   category: "摄影设计", location: "线上",   gradient: "from-cyan-400 to-blue-600",     emoji: "🎨", type: 'skill' },
-  { id: "s4", title: "吉他入门教学（一对一）",      price: 60,   unit: "/课时",       condition: "周末",     seller: "音乐社", time: "2天前",   category: "才艺教学", location: "琴房",   gradient: "from-orange-400 to-red-500",    emoji: "🎸", type: 'skill' },
-  { id: "s5", title: "跑腿/代取快递",              price: 5,    unit: "/次",         condition: "空闲",     seller: "王跑跑", time: "10分前",  category: "生活服务", location: "北园",   gradient: "from-green-400 to-teal-500",    emoji: "🏃", type: 'skill' },
-];
-
-const GOODS_CATEGORIES = ["全部", "书籍教材", "电子产品", "生活用品", "服装", "运动器材", "其他"];
-const SKILL_CATEGORIES = ["全部", "学业辅导", "摄影设计", "才艺教学", "生活服务", "游戏陪玩", "其他"];
-
-// --- 骨架屏组件 (保留但默认不显示) ---
-const ItemSkeleton = () => (
-  <div className="bg-card rounded-2xl overflow-hidden border shadow-sm h-full flex flex-col">
-    <div className="aspect-square bg-muted animate-pulse" />
-    <div className="p-3 space-y-2 flex-1">
-      <div className="h-4 bg-muted animate-pulse rounded w-3/4" />
-      <div className="h-3 bg-muted animate-pulse rounded w-1/4" />
-      <div className="flex justify-between items-end mt-2">
-        <div className="h-5 bg-muted animate-pulse rounded w-1/3" />
-        <div className="h-3 bg-muted animate-pulse rounded w-1/4" />
-      </div>
-    </div>
-  </div>
-);
-
 export default function MarketplacePage() {
-  // --- 2. 状态管理 ---
-  const [activeTab, setActiveTab] = useState<'goods' | 'skill'>('goods');
-  const [selectedCategory, setSelectedCategory] = useState("全部");
+  const [activeTab, setActiveTab] = useState<'item' | 'skill'>('item');
   const [searchQuery, setSearchQuery] = useState("");
-  
-  // [修改] 默认为 false，不显示 Loading 骨架屏
-  const [isLoading, setIsLoading] = useState(false);
-  
-  const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
 
-  // [修改] 删除了模拟延迟的 useEffect
-
-  // 切换 Tab 重置分类
-  useEffect(() => {
-    setSelectedCategory("全部");
-    setSearchQuery("");
-  }, [activeTab]);
-
-  const currentCategories = activeTab === 'goods' ? GOODS_CATEGORIES : SKILL_CATEGORIES;
-
-  // --- 3. 过滤逻辑 ---
-  const filteredItems = mockItems.filter((item) => {
-    const matchType = item.type === activeTab;
-    const matchCat = selectedCategory === "全部" || item.category === selectedCategory;
-    const matchSearch = !searchQuery || item.title.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchType && matchCat && matchSearch;
+  // 获取商品数据，将 isError 也解构出来用于错误状态判断
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["items", activeTab, searchQuery],
+    queryFn: () => apiClient.get<any>("/items", {
+      params: { type: activeTab, keyword: searchQuery }
+    }),
   });
+
+  // 终极保底逻辑：判断 data 到底是什么格式，确保 items 永远是一个数组，防止 .map 崩溃
+  const items = Array.isArray(data) ? data : (data?.items || []);
 
   return (
     <div className="min-h-screen bg-background pb-20 relative">
-      {/* Sticky Header */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-3 space-y-3">
-        
-        {/* Tab 切换 */}
         <div className="flex p-1 bg-muted/50 rounded-xl">
-          <button
-            onClick={() => setActiveTab('goods')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg transition-all ${
-              activeTab === 'goods' 
-                ? 'bg-background shadow-sm text-blue-600' 
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <ShoppingBag size={16} /> 
-            <span>校园闲置</span>
+          <button onClick={() => setActiveTab('item')} className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg ${activeTab === 'item' ? 'bg-background shadow-sm text-blue-600' : 'text-muted-foreground'}`}>
+            <ShoppingBag size={16} /> <span>校园闲置</span>
           </button>
-          <button
-            onClick={() => setActiveTab('skill')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg transition-all ${
-              activeTab === 'skill' 
-                ? 'bg-background shadow-sm text-purple-600' 
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <GraduationCap size={16} /> 
-            <span>技能交换</span>
+          <button onClick={() => setActiveTab('skill')} className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg ${activeTab === 'skill' ? 'bg-background shadow-sm text-purple-600' : 'text-muted-foreground'}`}>
+            <GraduationCap size={16} /> <span>技能交换</span>
           </button>
         </div>
 
-        {/* 搜索栏与发布按钮 */}
         <div className="flex gap-2">
           <div className="relative flex-1 group">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-              <Search size={16} />
-            </span>
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"><Search size={16} /></span>
             <input
               type="text"
-              placeholder={activeTab === 'goods' ? "搜索教材、耳机..." : "搜索辅导、摄影..."}
+              placeholder={activeTab === 'item' ? "搜索闲置..." : "搜索技能..."}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl bg-muted pl-9 pr-10 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+              className="w-full rounded-xl bg-muted pl-9 pr-10 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
             />
-            {/* AI 匹配按钮 */}
-            <button className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-purple-600 hover:bg-purple-100 rounded-lg transition-colors" title="AI 智能匹配">
-               <Sparkles size={18} className="animate-pulse" />
-            </button>
           </div>
-          
-          {/* 发布按钮 */}
-          <button 
-            onClick={() => setIsPublishDialogOpen(true)}
-            className="shrink-0 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 active:scale-95 transition-all flex items-center gap-1 shadow-sm"
-          >
-            <Plus size={18} />
-            <span className="hidden sm:inline">发布</span>
-          </button>
-        </div>
-
-        {/* Categories Chips */}
-        <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [-webkit-overflow-scrolling:touch] pb-1">
-          {currentCategories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition-all ${
-                selectedCategory === cat
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-muted text-muted-foreground hover:bg-muted/80"
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+          <Link href="/publish" className="shrink-0 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground flex items-center gap-1 shadow-sm">
+            <Plus size={18} /> 发布
+          </Link>
         </div>
       </div>
 
-      {/* Grid Content */}
-      <div className="p-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {/* 根据 isLoading 状态显示 */}
+      <div className="p-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
         {isLoading ? (
-          Array.from({ length: 8 }).map((_, i) => <ItemSkeleton key={i} />)
+          <p className="col-span-full text-center text-muted-foreground py-10">加载中...</p>
+        ) : isError ? (
+          <p className="col-span-full text-center text-red-500 py-10">获取数据失败，请确保后端服务已启动并已重启前端服务</p>
+        ) : items.length === 0 ? (
+          <p className="col-span-full text-center text-muted-foreground py-10">暂无数据</p>
         ) : (
-          <>
-            {filteredItems.map((item) => (
-              <Link key={item.id} href={`/marketplace/${item.id}`}>
-                <article className="bg-card rounded-2xl overflow-hidden border shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] h-full flex flex-col">
-                  
-                  {/* 图片区域 */}
-                  <div className={`aspect-square bg-gradient-to-br ${item.gradient} flex items-center justify-center relative`}>
-                    <span className="text-4xl drop-shadow-sm transform group-hover:scale-110 transition-transform">{item.emoji}</span>
-                    <span className="absolute top-2 right-2 rounded-full bg-black/20 backdrop-blur-md px-2 py-0.5 text-[10px] font-medium text-white border border-white/10">
-                      {item.condition}
-                    </span>
-                    {item.type === 'skill' && (
-                      <span className="absolute bottom-2 left-2 rounded px-1.5 py-0.5 text-[10px] font-bold bg-white/90 text-purple-600 shadow-sm">
-                        技能
-                      </span>
-                    )}
+          items.map((item: Item) => (
+            <Link key={item.id} href={`/marketplace/${item.id}`}>
+              <article className="bg-card rounded-2xl overflow-hidden border shadow-sm hover:shadow-md transition-all h-full flex flex-col">
+                <div className="aspect-square bg-muted relative">
+                  {item.cover_images?.[0] ? (
+                    <img src={item.cover_images[0]} alt={item.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground opacity-50">
+                       <Package size={48} />
+                    </div>
+                  )}
+                </div>
+                <div className="p-3 flex flex-col flex-1 justify-between">
+                  <h3 className="text-sm font-medium line-clamp-2">{item.title}</h3>
+                  <div className="mt-2 flex items-end justify-between">
+                    <span className="text-base font-bold text-primary">¥{item.price}</span>
                   </div>
-
-                  {/* 信息区域 */}
-                  <div className="p-3 flex flex-col flex-1 justify-between space-y-2">
-                    <div>
-                      <h3 className="text-sm font-medium leading-snug line-clamp-2 text-card-foreground">
-                        {item.title}
-                      </h3>
-                      <div className="mt-1 flex items-center gap-1 text-[10px] text-muted-foreground">
-                        <span className="bg-muted px-1 rounded">{item.category}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-end justify-between">
-                      <div className="flex items-baseline gap-1">
-                        {activeTab === 'skill' ? (
-                           <div className="flex flex-col">
-                             <span className="text-xs font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">
-                                {item.price > 0 ? `¥${item.price}${item.unit}` : '免费交换'}
-                             </span>
-                           </div>
-                        ) : (
-                           <>
-                            <span className="text-base font-bold text-primary">¥{item.price}</span>
-                            {item.originalPrice && (
-                              <span className="text-[10px] text-muted-foreground line-through decoration-muted-foreground/50">
-                                ¥{item.originalPrice}
-                              </span>
-                            )}
-                           </>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-border/50 flex items-center justify-between text-[10px] text-muted-foreground">
-                      <span className="flex items-center gap-0.5 max-w-[60%] truncate">
-                        📍 {item.location}
-                      </span>
-                      <span>{item.time}</span>
-                    </div>
-                  </div>
-                </article>
-              </Link>
-            ))}
-          </>
+                </div>
+              </article>
+            </Link>
+          ))
         )}
       </div>
-
-      {/* Empty State */}
-      {!isLoading && filteredItems.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-4">
-          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center text-3xl">
-            🫙
-          </div>
-          <div className="text-center">
-            <p className="font-medium text-foreground">暂无相关{activeTab === 'goods' ? '物品' : '技能'}</p>
-            <p className="text-sm mt-1">换个关键词，或者试试 <span className="text-purple-600 font-medium">AI 智能匹配</span></p>
-          </div>
-        </div>
-      )}
-
-      {/* 发布引导弹窗 (Dialog) */}
-      {isPublishDialogOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-background w-full max-w-sm rounded-3xl p-6 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold">你要发布什么？</h2>
-              <button 
-                onClick={() => setIsPublishDialogOpen(false)}
-                className="p-1 rounded-full hover:bg-muted transition-colors"
-              >
-                <X size={20} className="text-muted-foreground" />
-              </button>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <button className="flex flex-col items-center justify-center gap-3 h-32 rounded-2xl border-2 border-muted hover:border-blue-500 hover:bg-blue-50 transition-all group">
-                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
-                  <Package size={24} />
-                </div>
-                <span className="font-semibold text-sm text-foreground">闲置物品</span>
-              </button>
-              
-              <button className="flex flex-col items-center justify-center gap-3 h-32 rounded-2xl border-2 border-muted hover:border-purple-500 hover:bg-purple-50 transition-all group">
-                <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-110 transition-transform">
-                  <Zap size={24} />
-                </div>
-                <span className="font-semibold text-sm text-foreground">个人技能</span>
-              </button>
-            </div>
-            
-            <p className="text-xs text-center text-muted-foreground mt-6">
-              发布即代表同意《校园交易公约》
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -4354,211 +4703,270 @@ export default function MarketplacePage() {
 
 import { useState } from "react";
 import Link from "next/link";
-// [新增] 引入图标
-import { CheckCircle2, Star } from "lucide-react";
-
-const mockUser = {
-  name: "南科小卖家",
-  username: "@sustech_2024",
-  avatar: "南",
-  college: "工学院",
-  joinDate: "2024 年 9 月",
-  bio: "SUSTech 大三学生，喜欢淘便宜好物，东西多到放不下 😂",
-  stats: { published: 8, sold: 15, rating: 4.9, followers: 32 },
-};
-
-const myItems = [
-  { id: "5",  title: "机械键盘（青轴）",      price: 220, condition: "九成新", gradient: "from-emerald-400 to-green-600",  emoji: "⌨️", status: "在售" },
-  { id: "11", title: "哑铃一对 5kg×2",        price: 55,  condition: "九成新", gradient: "from-stone-400 to-stone-600",    emoji: "🏋️", status: "在售" },
-  { id: "2",  title: "AirPods Pro 二代",      price: 1200,condition: "八成新", gradient: "from-slate-400 to-slate-600",   emoji: "🎧", status: "已售" },
-  { id: "9",  title: "线性代数（同济第六版）", price: 15,  condition: "八成新", gradient: "from-indigo-400 to-blue-600",   emoji: "📐", status: "已售" },
-];
-
-const favorites = [
-  { id: "1",  title: "高等数学教材（第七版）", price: 25,  gradient: "from-blue-400 to-blue-600",    emoji: "📚" },
-  { id: "8",  title: "iPad mini 6 WiFi 256G", price: 2800, gradient: "from-zinc-400 to-gray-600",    emoji: "📱" },
-  { id: "7",  title: "瑜伽垫（全新未拆封）",  price: 45,  gradient: "from-teal-400 to-cyan-600",    emoji: "🧘" },
-];
-
-const tabs = ["我的发布", "已购商品", "收藏"];
+import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth-store";
+import { toast } from "sonner";
+import { 
+  CheckCircle2, Star, Settings, LogOut, Package, 
+  Heart, FileText, Edit, X, Camera 
+} from "lucide-react";
 
 export default function ProfilePage() {
-  const [activeTab, setActiveTab] = useState("我的发布");
-  const [editing, setEditing] = useState(false);
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { logout } = useAuthStore();
+  
+  // 1. 弹窗与表单状态
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ avatar_url: "", bio: "" });
+
+  // 2. 获取个人数据
+  const { data: user, isLoading: isUserLoading } = useQuery({
+    queryKey: ["users", "me"],
+    queryFn: () => apiClient.get<any>("/users/me"),
+  });
+
+  // 3. 获取我发布的商品
+  const { data: myItemsData, isLoading: isItemsLoading } = useQuery({
+    queryKey: ["items", "my"],
+    queryFn: () => apiClient.get<any>("/items", { params: { owner_id: user?.id } }),
+    enabled: !!user?.id,
+  });
+
+  // 4. 编辑资料 Mutation
+  const updateProfileMutation = useMutation({
+    mutationFn: (data: { avatar_url?: string; bio?: string }) => 
+      apiClient.patch("/users/me", data),
+    onSuccess: () => {
+      toast.success("资料更新成功");
+      setIsEditModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["users", "me"] });
+    },
+    onError: (err: any) => toast.error(err.message || "更新失败"),
+  });
+
+  // 处理逻辑
+  const handleOpenEdit = () => {
+    setEditForm({ 
+      avatar_url: user?.avatar_url || "", 
+      bio: user?.bio || "" 
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProfileMutation.mutate(editForm);
+  };
+
+  const handleLogout = () => {
+    logout();
+    router.replace("/login");
+  };
+
+  // 加载与未登录拦截
+  if (isUserLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
+        <div className="animate-pulse flex flex-col items-center gap-2">
+          <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+          <p>加载个人信息中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-muted-foreground">
+        <p>请先登录后查看个人中心</p>
+        <Link href="/login" className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg shadow-primary/20">
+          去登录
+        </Link>
+      </div>
+    );
+  }
+
+  const myItems = myItemsData?.items || [];
 
   return (
-    <div className="min-h-screen">
-      {/* Profile header */}
-      <div className="bg-gradient-to-b from-primary/10 to-background px-4 pt-6 pb-4">
+    <div className="min-h-screen pb-24 bg-background">
+      {/* 头部：用户信息区 */}
+      <div className="bg-gradient-to-b from-primary/15 to-background px-4 pt-10 pb-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-4">
-            {/* Avatar Section with Verification Badge */}
-            <div className="relative"> {/* [修改] 增加 relative 容器 */}
-                <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/60 to-primary flex items-center justify-center text-3xl font-bold text-primary-foreground shadow-lg">
-                  {mockUser.avatar}
+            <div className="relative">
+              <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/60 to-primary flex items-center justify-center text-3xl font-bold text-primary-foreground shadow-lg overflow-hidden border-4 border-background">
+                {user.avatar_url ? (
+                  <img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  user.username.charAt(0).toUpperCase()
+                )}
+              </div>
+              <div className="absolute -bottom-1 -right-1 bg-white p-0.5 rounded-full shadow-sm">
+                <CheckCircle2 className="w-5 h-5 text-blue-500 fill-blue-100" />
+              </div>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold">{user.username}</h1>
+              <div className="flex items-center gap-2 mt-1.5">
+                <div className="flex items-center gap-1 bg-amber-100 px-2 py-0.5 rounded text-[10px] font-bold text-amber-700 border border-amber-200">
+                  <Star size={12} className="fill-amber-500 text-amber-500" /> 交易 {user.reputation_trade}
                 </div>
-                {/* [新增] 认证徽章 - 绝对定位 */}
-                <div className="absolute -bottom-1 -right-1 bg-white p-0.5 rounded-full shadow-sm">
-                   <CheckCircle2 className="w-5 h-5 text-blue-500 fill-blue-100" />
+                <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded text-[10px] font-bold text-blue-600 border border-blue-100">
+                  <CheckCircle2 size={12} /> 技能 {user.reputation_skill}
                 </div>
+              </div>
+            </div>
+          </div>
+          <button 
+            onClick={handleOpenEdit}
+            className="flex items-center gap-1 shrink-0 rounded-xl border bg-background/50 backdrop-blur-sm px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
+          >
+            <Edit size={14} /> 编辑
+          </button>
+        </div>
+
+        <p className="text-sm text-muted-foreground leading-relaxed mt-2 px-1">
+          {user.bio || "点击编辑添加个人简介..."}
+        </p>
+
+        {/* 核心统计与入口 */}
+        <div className="grid grid-cols-3 gap-3 mt-6">
+          <div className="bg-card rounded-2xl p-3 flex flex-col items-center justify-center border shadow-sm">
+            <span className="text-lg font-bold">{(user.trade_count || 0) + (user.skill_count || 0)}</span>
+            <span className="text-[10px] text-muted-foreground font-medium">累计成交</span>
+          </div>
+          <Link href="/orders" className="bg-card rounded-2xl p-3 flex flex-col items-center justify-center border shadow-sm hover:bg-blue-50/50 hover:border-blue-200 transition-all group">
+            <FileText className="w-5 h-5 mb-1 text-blue-500 group-hover:scale-110 transition-transform" />
+            <span className="text-[10px] text-muted-foreground font-medium">我的订单</span>
+          </Link>
+          <Link href="/wishlists" className="bg-card rounded-2xl p-3 flex flex-col items-center justify-center border shadow-sm hover:bg-red-50/50 hover:border-red-200 transition-all group">
+            <Heart className="w-5 h-5 mb-1 text-red-500 group-hover:scale-110 transition-transform" />
+            <span className="text-[10px] text-muted-foreground font-medium">心愿单</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* 列表：我发布的内容 */}
+      <div className="px-4 mt-4 space-y-4">
+        <h2 className="font-bold text-lg flex items-center gap-2">
+          我发布的
+          <span className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-full font-medium">
+            {myItems.length}
+          </span>
+        </h2>
+        
+        <div className="space-y-3">
+          {isItemsLoading ? (
+             <div className="text-sm text-muted-foreground text-center py-10">加载商品中...</div>
+          ) : myItems.length === 0 ? (
+             <div className="text-center py-10 border-2 border-dashed rounded-3xl border-muted flex flex-col items-center justify-center gap-2">
+               <Package size={32} className="text-muted-foreground/30" />
+               <p className="text-sm text-muted-foreground">你还没有发布过任何内容</p>
+               <Link href="/publish" className="text-primary text-xs font-bold hover:underline">去发布第一个商品</Link>
+             </div>
+          ) : (
+            myItems.map((item: any) => (
+              <Link key={item.id} href={`/marketplace/${item.id}`}>
+                <div className="flex items-center gap-3 bg-card border rounded-2xl p-3 hover:shadow-md transition-all">
+                  <div className="h-16 w-16 shrink-0 rounded-xl bg-muted overflow-hidden">
+                    {item.cover_images?.[0] ? (
+                       <img src={item.cover_images[0]} alt="cover" className="w-full h-full object-cover" />
+                    ) : (
+                       <div className="w-full h-full flex items-center justify-center text-muted-foreground"><Package size={20} /></div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium text-sm line-clamp-1">{item.title}</p>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium border ${
+                        item.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-500 border-slate-200'
+                      }`}>
+                        {item.status === 'active' ? '在售' : '已售出'}
+                      </span>
+                    </div>
+                    <p className="font-bold text-primary mt-2">¥{item.price}</p>
+                  </div>
+                </div>
+              </Link>
+            ))
+          )}
+        </div>
+
+        {/* 底部功能菜单 */}
+        <div className="border rounded-2xl overflow-hidden divide-y bg-card mt-8 shadow-sm">
+          <button className="w-full flex items-center justify-between px-4 py-4 hover:bg-muted/50 transition-colors text-left group">
+            <span className="flex items-center gap-3 text-sm font-medium">
+              <Settings size={18} className="text-muted-foreground group-hover:text-foreground transition-colors" /> 
+              账号设置
+            </span>
+            <span className="text-muted-foreground">›</span>
+          </button>
+          
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center justify-between px-4 py-4 hover:bg-red-50 transition-colors text-left group"
+          >
+            <span className="flex items-center gap-3 text-sm font-medium text-red-500">
+              <LogOut size={18} /> 
+              退出登录
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* 编辑资料弹窗 (Portal-like) */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-background w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">编辑资料</h2>
+              <button 
+                onClick={() => setIsEditModalOpen(false)}
+                className="p-1 hover:bg-muted rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
             </div>
             
-            <div>
-              <h1 className="text-xl font-bold">{mockUser.name}</h1>
-              
-              {/* [新增] 信誉分展示条 */}
-              <div className="flex items-center gap-1.5 mt-1 bg-amber-100/50 px-2 py-0.5 rounded-md w-fit border border-amber-100">
-                <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                <span className="text-xs font-bold text-amber-700">信誉极好 4.9</span>
+            <form onSubmit={handleSaveProfile} className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold flex items-center gap-2">
+                  <Camera size={16} className="text-primary"/> 头像链接
+                </label>
+                <input 
+                  value={editForm.avatar_url}
+                  onChange={e => setEditForm({...editForm, avatar_url: e.target.value})}
+                  placeholder="https://..."
+                  className="w-full rounded-xl border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                />
               </div>
-
-              <p className="text-sm text-muted-foreground mt-1">{mockUser.username}</p>
               
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5 font-medium">
-                  {mockUser.college}
-                </span>
-                <span className="text-xs text-muted-foreground">加入于 {mockUser.joinDate}</span>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">个人简介</label>
+                <textarea 
+                  value={editForm.bio}
+                  onChange={e => setEditForm({...editForm, bio: e.target.value})}
+                  rows={3}
+                  placeholder="介绍一下你自己..."
+                  className="w-full rounded-xl border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+                />
               </div>
-            </div>
-          </div>
-          
-          <button
-            onClick={() => setEditing(!editing)}
-            className="shrink-0 rounded-xl border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
-          >
-            编辑
-          </button>
-        </div>
-
-        {/* Bio */}
-        <p className="text-sm text-muted-foreground leading-relaxed">{mockUser.bio}</p>
-
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-2 mt-4">
-          {[
-            { label: "已发布", value: mockUser.stats.published },
-            { label: "已成交", value: mockUser.stats.sold },
-            { label: "信用评分", value: mockUser.stats.rating },
-            { label: "关注者", value: mockUser.stats.followers },
-          ].map(({ label, value }) => (
-            <div key={label} className="bg-card rounded-xl p-3 text-center border">
-              <p className="text-xl font-bold">{value}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="border-b px-4 flex gap-0">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors -mb-px ${
-              activeTab === tab
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      <div className="p-4">
-        {activeTab === "我的发布" && (
-          <div className="space-y-3">
-            {myItems.map((item) => (
-              <Link key={item.id} href={`/marketplace/${item.id}`}>
-                <div className="flex items-center gap-3 bg-card border rounded-2xl p-3 hover:shadow-md transition-all duration-200">
-                  <div className={`h-14 w-14 shrink-0 rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center text-2xl`}>
-                    {item.emoji}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                        <p className="font-medium text-sm line-clamp-1">{item.title}</p>
-                        <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[10px] font-medium ${
-                            item.status === "在售"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-muted text-muted-foreground"
-                        }`}>
-                            {item.status}
-                        </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">{item.condition}</p>
-                    <p className="font-bold mt-1 text-primary">¥{item.price}</p>
-                  </div>
-                </div>
-              </Link>
-            ))}
-            <button className="w-full rounded-2xl border-2 border-dashed py-6 text-sm text-muted-foreground hover:bg-muted/50 transition-colors flex flex-col items-center gap-2">
-              <span className="text-2xl">＋</span>
-              发布新商品
-            </button>
-          </div>
-        )}
-
-        {activeTab === "已购商品" && (
-          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
-            <span className="text-5xl">🛍️</span>
-            <p className="font-medium">暂无购买记录</p>
-            <p className="text-sm">去市场看看心仪的好物？</p>
-            <Link href="/marketplace">
-              <button className="mt-2 rounded-xl bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 transition">
-                逛逛市场
+              
+              <button 
+                type="submit"
+                disabled={updateProfileMutation.isPending}
+                className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-bold hover:opacity-90 disabled:opacity-50 transition-all shadow-lg shadow-primary/20"
+              >
+                {updateProfileMutation.isPending ? "正在保存..." : "保存修改"}
               </button>
-            </Link>
+            </form>
           </div>
-        )}
-
-        {activeTab === "收藏" && (
-          <div className="grid grid-cols-2 gap-3">
-            {favorites.map((item) => (
-              <Link key={item.id} href={`/marketplace/${item.id}`}>
-                <article className="bg-card rounded-2xl overflow-hidden border hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5">
-                  <div className={`aspect-square bg-gradient-to-br ${item.gradient} flex items-center justify-center`}>
-                    <span className="text-4xl">{item.emoji}</span>
-                  </div>
-                  <div className="p-3 space-y-1">
-                    <p className="text-sm font-medium line-clamp-2 leading-snug">{item.title}</p>
-                    <span className="font-bold text-base text-primary">¥{item.price}</span>
-                  </div>
-                </article>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Settings section */}
-      <div className="px-4 pb-24 mt-4">
-        <div className="border rounded-2xl overflow-hidden divide-y bg-card">
-          {[
-            { icon: "🔔", label: "通知设置" },
-            { icon: "🔒", label: "账号安全" },
-            { icon: "🎨", label: "外观设置" },
-            { icon: "❓", label: "帮助与反馈" },
-          ].map(({ icon, label }) => (
-            <button
-              key={label}
-              className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-muted/50 transition-colors text-left"
-            >
-              <span className="flex items-center gap-3 text-sm font-medium">
-                <span>{icon}</span>
-                {label}
-              </span>
-              <span className="text-muted-foreground text-sm">›</span>
-            </button>
-          ))}
         </div>
-
-        <button className="w-full mt-4 rounded-2xl border border-red-200 py-3.5 text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors bg-card">
-          退出登录
-        </button>
-      </div>
+      )}
     </div>
   );
 }
