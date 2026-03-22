@@ -8,7 +8,8 @@ import { apiClient } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Package, Zap, MapPin, Clock, Truck, ShieldCheck, X, Edit, Trash2 } from "lucide-react";
+import { Package, MapPin, Clock, X, Edit, Trash2, Heart } from "lucide-react";
+import { reputationToFiveScale } from "@/lib/reputation";
 
 export default function ItemDetailPage() {
   const { id } = useParams();
@@ -21,6 +22,7 @@ export default function ItemDetailPage() {
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editForm, setEditForm] = useState({ price: "", description: "", location_text: "" });
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const { data: item, isLoading: isItemLoading } = useQuery({
     queryKey: ["item", id],
@@ -75,6 +77,29 @@ export default function ItemDetailPage() {
     onError: (err: any) => toast.error(err.message || "删除失败"),
   });
 
+  const delistMutation = useMutation({
+    mutationFn: () => apiClient.patch(`/items/${item?.id}`, { status: item?.status === "active" ? "inactive" : "active" }),
+    onSuccess: () => {
+      toast.success(item?.status === "active" ? "商品已下架" : "商品已重新上架");
+      queryClient.invalidateQueries({ queryKey: ["item", id] });
+    },
+    onError: (err: { message?: string }) => toast.error(err.message || "操作失败"),
+  });
+
+  const wishlistMutation = useMutation({
+    mutationFn: () =>
+      apiClient.post("/wishlists", {
+        keyword: item?.title ?? "",
+        type: item?.type === "skill" ? "skill" : "item",
+        max_price: Math.max(Number(item?.price) || 0, 1),
+      }),
+    onSuccess: () => {
+      toast.success("已加入心愿单");
+      queryClient.invalidateQueries({ queryKey: ["wishlists"] });
+    },
+    onError: (err: { message?: string }) => toast.error(err.message || "添加失败"),
+  });
+
   const handleOpenOrderModal = () => {
     setOrderForm({ price: item.price.toString(), note: "" });
     setIsOrderModalOpen(true);
@@ -117,19 +142,52 @@ export default function ItemDetailPage() {
   if (isItemLoading) return <div className="p-10 text-center">加载商品信息中...</div>;
   if (!item) return <div className="p-10 text-center">商品不存在或已删除</div>;
 
-  const isSkill = item.type === 'skill';
-  const isOwner = currentUser?.id === item.owner_id;
+  const isSkill = item.type === "skill";
+  const isLost = item.type === "lost";
+  const isOwner = Number(currentUser?.id) === Number(item.owner_id);
 
   return (
     <div className="min-h-screen max-w-2xl mx-auto bg-background pb-24 relative">
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-3 flex items-center gap-3">
         <button onClick={() => router.back()} className="rounded-full p-1.5 hover:bg-muted text-lg leading-none">←</button>
-        <span className="font-semibold text-sm truncate flex-1">{isSkill ? "技能服务详情" : "闲置物品详情"}</span>
+        <span className="font-semibold text-sm truncate flex-1">
+          {isSkill ? "技能服务详情" : isLost ? "失物招领详情" : item.type === "errand" ? "跑腿服务详情" : "闲置物品详情"}
+        </span>
       </div>
 
-      <div className="w-full aspect-square md:aspect-video bg-muted flex items-center justify-center relative">
-        {item.cover_images?.[0] ? (
-          <img src={item.cover_images[0]} alt={item.title} className="w-full h-full object-cover" />
+      <div className="w-full aspect-square md:aspect-video bg-muted flex items-center justify-center relative overflow-hidden">
+        {item.cover_images?.length > 0 ? (
+          <>
+            <img src={item.cover_images[currentImageIndex]} alt={item.title} className="w-full h-full object-cover" />
+            {item.cover_images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setCurrentImageIndex((i: number) => (i - 1 + item.cover_images.length) % item.cover_images.length)}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-black/60"
+                >
+                  ‹
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentImageIndex((i: number) => (i + 1) % item.cover_images.length)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 text-white rounded-full w-8 h-8 flex items-center justify-center hover:bg-black/60"
+                >
+                  ›
+                </button>
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                  {item.cover_images.map((_: string, i: number) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setCurrentImageIndex(i)}
+                      className={`w-2 h-2 rounded-full transition-all ${i === currentImageIndex ? "bg-white scale-125" : "bg-white/50"}`}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
         ) : (
           <div className="text-muted-foreground opacity-50 flex flex-col items-center"><Package size={48} /></div>
         )}
@@ -185,7 +243,10 @@ export default function ItemDetailPage() {
                 </div>
                 <div>
                   <p className="font-semibold">{seller.username}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">信誉分: {isSkill ? seller.reputation_skill : seller.reputation_trade}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    信誉 {reputationToFiveScale(isSkill ? seller.reputation_skill : seller.reputation_trade)} · 成交{" "}
+                    {isSkill ? seller.skill_count ?? 0 : seller.trade_count ?? 0} 次
+                  </p>
                 </div>
               </div>
               <Link href={`/profile/${seller.id}`}>
@@ -194,25 +255,40 @@ export default function ItemDetailPage() {
             </div>
           )}
         </div>
+
+        {!isOwner && currentUser && item.status === "active" && (
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full rounded-xl h-11 gap-2"
+            onClick={() => wishlistMutation.mutate()}
+            disabled={wishlistMutation.isPending}
+          >
+            <Heart className="w-4 h-4" /> 加入心愿单（匹配推送）
+          </Button>
+        )}
       </div>
 
       <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md border-t p-4 flex gap-3 max-w-2xl mx-auto z-40">
         {isOwner ? (
           <>
-            <Button variant="outline" className="flex-1 rounded-xl h-12 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={handleDelete} disabled={deleteItemMutation.isPending}>
-              <Trash2 className="w-4 h-4 mr-2" /> 删除商品
+            <Button variant="outline" className="rounded-xl h-12 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={handleDelete} disabled={deleteItemMutation.isPending}>
+              <Trash2 className="w-4 h-4" />
+            </Button>
+            <Button variant="outline" className="flex-1 rounded-xl h-12" onClick={() => delistMutation.mutate()} disabled={delistMutation.isPending}>
+              {item.status === "active" ? "下架" : "重新上架"}
             </Button>
             <Button className="flex-1 rounded-xl h-12" onClick={handleOpenEditModal}>
-              <Edit className="w-4 h-4 mr-2" /> 修改信息
+              <Edit className="w-4 h-4 mr-2" /> 修改
             </Button>
           </>
         ) : (
           <>
-            <Button variant="outline" className="flex-1 rounded-xl h-12" onClick={() => chatMutation.mutate()} disabled={chatMutation.isPending || item.status !== 'active'}>
-              💬 聊一聊
+            <Button variant="outline" className="flex-1 rounded-xl h-12" onClick={() => chatMutation.mutate()} disabled={chatMutation.isPending || item.status !== 'active' || !currentUser}>
+              💬 {isLost ? "联系发布者" : "联系卖家"}
             </Button>
-            <Button className="flex-[2] rounded-xl font-bold h-12" onClick={handleOpenOrderModal} disabled={item.status !== 'active'}>
-              {item.status !== 'active' ? "商品不可售" : "立即下单"}
+            <Button className="flex-[2] rounded-xl font-bold h-12" onClick={handleOpenOrderModal} disabled={item.status !== 'active' || !currentUser || isLost}>
+              {!currentUser ? "登录后下单" : item.status !== 'active' ? "商品不可售" : isLost ? "失物无需下单" : "发起订单"}
             </Button>
           </>
         )}

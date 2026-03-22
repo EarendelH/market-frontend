@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { toast } from "sonner";
+import Link from "next/link";
 import { Heart, Plus, Edit2, Trash2, X, Power, PowerOff } from "lucide-react";
+import { useAuthStore } from "@/stores/auth-store";
 
 // 定义心愿单数据结构
 interface Wishlist {
@@ -20,6 +22,7 @@ interface Wishlist {
 export default function WishlistsPage() {
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { isAuthenticated, isHydrating } = useAuthStore();
 
   // 弹窗与表单状态
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -30,6 +33,7 @@ export default function WishlistsPage() {
   const { data: wishlists = [], isLoading } = useQuery({
     queryKey: ["wishlists"],
     queryFn: () => apiClient.get<Wishlist[]>("/wishlists"),
+    enabled: isAuthenticated && !isHydrating,
   });
 
   // 2. 新增心愿单 Mutation
@@ -107,6 +111,21 @@ export default function WishlistsPage() {
     const newStatus = item.status === "active" ? "inactive" : "active";
     updateMutation.mutate({ id: item.id, data: { status: newStatus } });
   };
+
+  if (isHydrating) {
+    return <div className="min-h-screen flex items-center justify-center text-muted-foreground">加载中…</div>;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+        <p className="text-muted-foreground">登录后可管理心愿单与智能匹配</p>
+        <Link href="/login?redirect=/wishlists" className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-primary-foreground">
+          去登录
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20">

@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { apiClient } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
-import { toast } from "sonner"; // 引入 sonner 提示组件
+import type { AuthUser } from "@/stores/auth-store";
+import { toast } from "sonner";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get("redirect") || "/marketplace";
   const setAuth = useAuthStore((s) => s.setAuth);
   const [form, setForm] = useState({ sustech_email: "", password: "" });
   const [loading, setLoading] = useState(false);
@@ -22,10 +25,10 @@ export default function LoginPage() {
     
     setLoading(true);
     try {
-      const res = await apiClient.post<{ token: string; user: any }>("/auth/login", form);
+      const res = await apiClient.post<{ token: string; user: AuthUser }>("/auth/login", form);
       setAuth(res.user, res.token);
       toast.success("登录成功");
-      router.push("/marketplace");
+      router.push(redirectTo.startsWith("/") ? redirectTo : "/marketplace");
     } catch (error: any) {
       toast.error(error.message || "登录失败");
     } finally {
@@ -75,5 +78,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-muted-foreground">加载中…</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

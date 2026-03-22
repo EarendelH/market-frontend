@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 // 定义地图点位数据
 const tradingSpots = [
@@ -209,9 +210,12 @@ export default function MapPage() {
                 </span>
               ))}
             </div>
-            <button className="w-full mt-3 py-2 bg-white/60 hover:bg-white/80 text-sm font-semibold rounded-xl border border-black/5 transition-colors">
+            <Link
+              href={`/marketplace?keyword=${encodeURIComponent(selected.tags[0] || selected.name)}`}
+              className="block w-full mt-3 py-2 text-center bg-white/60 hover:bg-white/80 text-sm font-semibold rounded-xl border border-black/5 transition-colors"
+            >
               查看此处所有发布
-            </button>
+            </Link>
           </div>
         )}
 

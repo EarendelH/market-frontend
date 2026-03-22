@@ -7,24 +7,39 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "sonner";
-import { 
-  CheckCircle2, Star, Settings, LogOut, Package, 
-  Heart, FileText, Edit, X, Camera 
+import {
+  CheckCircle2,
+  Star,
+  Settings,
+  LogOut,
+  Package,
+  Heart,
+  FileText,
+  Edit,
+  X,
+  Camera,
+  MessageCircle,
+  Bookmark,
+  Upload,
 } from "lucide-react";
+import { reputationToFiveScale } from "@/lib/reputation";
 
 export default function ProfilePage() {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { logout } = useAuthStore();
+  const { logout, isAuthenticated, isHydrating } = useAuthStore();
   
-  // 1. 弹窗与表单状态
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [editForm, setEditForm] = useState({ avatar_url: "", bio: "" });
+  const [settingsForm, setSettingsForm] = useState({ username: "", current_password: "", new_password: "" });
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   // 2. 获取个人数据
   const { data: user, isLoading: isUserLoading } = useQuery({
     queryKey: ["users", "me"],
     queryFn: () => apiClient.get<any>("/users/me"),
+    enabled: isAuthenticated && !isHydrating,
   });
 
   // 3. 获取我发布的商品
@@ -34,7 +49,6 @@ export default function ProfilePage() {
     enabled: !!user?.id,
   });
 
-  // 4. 编辑资料 Mutation
   const updateProfileMutation = useMutation({
     mutationFn: (data: { avatar_url?: string; bio?: string }) => 
       apiClient.patch("/users/me", data),
@@ -43,10 +57,28 @@ export default function ProfilePage() {
       setIsEditModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ["users", "me"] });
     },
-    onError: (err: any) => toast.error(err.message || "更新失败"),
+    onError: (err: { message?: string }) => toast.error(err.message || "更新失败"),
   });
 
-  // 处理逻辑
+  const updateUsernameMutation = useMutation({
+    mutationFn: (username: string) => apiClient.patch("/users/me/username", { username }),
+    onSuccess: () => {
+      toast.success("用户名已更新");
+      queryClient.invalidateQueries({ queryKey: ["users", "me"] });
+    },
+    onError: (err: { message?: string }) => toast.error(err.message || "更新失败"),
+  });
+
+  const updatePasswordMutation = useMutation({
+    mutationFn: (data: { current_password: string; new_password: string }) =>
+      apiClient.patch("/users/me/password", data),
+    onSuccess: () => {
+      toast.success("密码已更新");
+      setSettingsForm({ ...settingsForm, current_password: "", new_password: "" });
+    },
+    onError: (err: { message?: string }) => toast.error(err.message || "密码更新失败"),
+  });
+
   const handleOpenEdit = () => {
     setEditForm({ 
       avatar_url: user?.avatar_url || "", 
@@ -55,15 +87,54 @@ export default function ProfilePage() {
     setIsEditModalOpen(true);
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingAvatar(true);
+    try {
+      const result = await apiClient.upload(file);
+      setEditForm({ ...editForm, avatar_url: result.url });
+      toast.success("头像已上传");
+    } catch {
+      toast.error("头像上传失败");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     updateProfileMutation.mutate(editForm);
+  };
+
+  const handleOpenSettings = () => {
+    setSettingsForm({ username: user?.username || "", current_password: "", new_password: "" });
+    setIsSettingsOpen(true);
   };
 
   const handleLogout = () => {
     logout();
     router.replace("/login");
   };
+
+  if (isHydrating) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
+        <div className="animate-pulse">加载中…</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-muted-foreground p-6">
+        <p>请先登录后查看个人中心</p>
+        <Link href="/login?redirect=/profile" className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg shadow-primary/20">
+          去登录
+        </Link>
+      </div>
+    );
+  }
 
   // 加载与未登录拦截
   if (isUserLoading) {
@@ -80,15 +151,17 @@ export default function ProfilePage() {
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-muted-foreground">
-        <p>请先登录后查看个人中心</p>
-        <Link href="/login" className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg shadow-primary/20">
-          去登录
+        <p>无法加载用户信息</p>
+        <Link href="/login" className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold">
+          重新登录
         </Link>
       </div>
     );
   }
 
   const myItems = myItemsData?.items || [];
+  const tradeStars = reputationToFiveScale(user.reputation_trade);
+  const skillStars = reputationToFiveScale(user.reputation_skill);
 
   return (
     <div className="min-h-screen pb-24 bg-background">
@@ -112,10 +185,10 @@ export default function ProfilePage() {
               <h1 className="text-xl font-bold">{user.username}</h1>
               <div className="flex items-center gap-2 mt-1.5">
                 <div className="flex items-center gap-1 bg-amber-100 px-2 py-0.5 rounded text-[10px] font-bold text-amber-700 border border-amber-200">
-                  <Star size={12} className="fill-amber-500 text-amber-500" /> 交易 {user.reputation_trade}
+                  <Star size={12} className="fill-amber-500 text-amber-500" /> 交易 {tradeStars}
                 </div>
                 <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded text-[10px] font-bold text-blue-600 border border-blue-100">
-                  <CheckCircle2 size={12} /> 技能 {user.reputation_skill}
+                  <CheckCircle2 size={12} /> 技能 {skillStars}
                 </div>
               </div>
             </div>
@@ -197,9 +270,39 @@ export default function ProfilePage() {
 
         {/* 底部功能菜单 */}
         <div className="border rounded-2xl overflow-hidden divide-y bg-card mt-8 shadow-sm">
-          <button className="w-full flex items-center justify-between px-4 py-4 hover:bg-muted/50 transition-colors text-left group">
+          <Link
+            href="/chat"
+            className="w-full flex items-center justify-between px-4 py-4 hover:bg-muted/50 transition-colors text-left group"
+          >
             <span className="flex items-center gap-3 text-sm font-medium">
-              <Settings size={18} className="text-muted-foreground group-hover:text-foreground transition-colors" /> 
+              <MessageCircle size={18} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+              我的聊天
+            </span>
+            <span className="text-muted-foreground">›</span>
+          </Link>
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-4 py-4 hover:bg-muted/50 transition-colors text-left text-muted-foreground cursor-not-allowed"
+            disabled
+          >
+            <span className="flex items-center gap-3 text-sm font-medium">
+              <Bookmark size={18} /> 我的收藏（即将上线）
+            </span>
+            <span>›</span>
+          </button>
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-4 py-4 hover:bg-muted/50 transition-colors text-left text-muted-foreground cursor-not-allowed"
+            disabled
+          >
+            <span className="flex items-center gap-3 text-sm font-medium">
+              <Star size={18} /> 我的评价（即将上线）
+            </span>
+            <span>›</span>
+          </button>
+          <button type="button" onClick={handleOpenSettings} className="w-full flex items-center justify-between px-4 py-4 hover:bg-muted/50 transition-colors text-left group">
+            <span className="flex items-center gap-3 text-sm font-medium">
+              <Settings size={18} className="text-muted-foreground group-hover:text-foreground transition-colors" />
               账号设置
             </span>
             <span className="text-muted-foreground">›</span>
@@ -217,7 +320,72 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* 编辑资料弹窗 (Portal-like) */}
+      {/* 账号设置弹窗 */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-background w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">账号设置</h2>
+              <button onClick={() => setIsSettingsOpen(false)} className="p-1 hover:bg-muted rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">修改用户名</label>
+                <div className="flex gap-2">
+                  <input
+                    value={settingsForm.username}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, username: e.target.value })}
+                    className="flex-1 rounded-xl border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => settingsForm.username.trim() && updateUsernameMutation.mutate(settingsForm.username.trim())}
+                    disabled={updateUsernameMutation.isPending || !settingsForm.username.trim()}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium disabled:opacity-50"
+                  >
+                    保存
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2 border-t pt-4">
+                <label className="text-sm font-semibold">修改密码</label>
+                <input
+                  type="password"
+                  placeholder="当前密码"
+                  value={settingsForm.current_password}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, current_password: e.target.value })}
+                  className="w-full rounded-xl border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <input
+                  type="password"
+                  placeholder="新密码（至少8位，含字母和数字）"
+                  value={settingsForm.new_password}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, new_password: e.target.value })}
+                  className="w-full rounded-xl border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!settingsForm.current_password || !settingsForm.new_password) return toast.error("请填写完整");
+                    updatePasswordMutation.mutate({
+                      current_password: settingsForm.current_password,
+                      new_password: settingsForm.new_password,
+                    });
+                  }}
+                  disabled={updatePasswordMutation.isPending}
+                  className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-bold hover:opacity-90 disabled:opacity-50 transition-all"
+                >
+                  {updatePasswordMutation.isPending ? "修改中..." : "修改密码"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 编辑资料弹窗 */}
       {isEditModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-background w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
@@ -234,14 +402,22 @@ export default function ProfilePage() {
             <form onSubmit={handleSaveProfile} className="space-y-5">
               <div className="space-y-2">
                 <label className="text-sm font-semibold flex items-center gap-2">
-                  <Camera size={16} className="text-primary"/> 头像链接
+                  <Camera size={16} className="text-primary"/> 头像
                 </label>
-                <input 
-                  value={editForm.avatar_url}
-                  onChange={e => setEditForm({...editForm, avatar_url: e.target.value})}
-                  placeholder="https://..."
-                  className="w-full rounded-xl border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-                />
+                <div className="flex items-center gap-4">
+                  <div className="h-16 w-16 rounded-full bg-muted border overflow-hidden flex items-center justify-center shrink-0">
+                    {editForm.avatar_url ? (
+                      <img src={editForm.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <Camera size={20} className="text-muted-foreground" />
+                    )}
+                  </div>
+                  <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl border bg-muted/30 text-sm font-medium cursor-pointer hover:bg-muted transition-colors">
+                    <Upload size={14} />
+                    {isUploadingAvatar ? "上传中..." : "上传头像"}
+                    <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" disabled={isUploadingAvatar} />
+                  </label>
+                </div>
               </div>
               
               <div className="space-y-2">
