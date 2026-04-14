@@ -1,0 +1,4975 @@
+This file is a merged representation of the entire codebase, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of the entire repository's contents.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+.gitignore
+components.json
+eslint.config.mjs
+FRONTEND_GUIDE.md
+next.config.ts
+package.json
+postcss.config.mjs
+public/file.svg
+public/globe.svg
+public/next.svg
+public/vercel.svg
+public/window.svg
+README.md
+src/app/(auth)/login/page.tsx
+src/app/(auth)/register/page.tsx
+src/app/admin/items/page.tsx
+src/app/admin/layout.tsx
+src/app/admin/orders/page.tsx
+src/app/admin/page.tsx
+src/app/admin/reports/page.tsx
+src/app/admin/users/page.tsx
+src/app/chat/layout.tsx
+src/app/chat/page.tsx
+src/app/favicon.ico
+src/app/globals.css
+src/app/layout.tsx
+src/app/map/layout.tsx
+src/app/map/page.tsx
+src/app/marketplace/[id]/page.tsx
+src/app/marketplace/layout.tsx
+src/app/marketplace/page.tsx
+src/app/orders/[id]/page.tsx
+src/app/orders/page.tsx
+src/app/page.tsx
+src/app/profile/[id]/page.tsx
+src/app/profile/layout.tsx
+src/app/profile/page.tsx
+src/app/publish/page.tsx
+src/app/types/index.ts
+src/app/wishlists/page.tsx
+src/components/layout/app-shell.tsx
+src/components/layout/mobile-nav.tsx
+src/components/layout/sidebar.tsx
+src/components/providers/query-provider.tsx
+src/components/ui/avatar.tsx
+src/components/ui/badge.tsx
+src/components/ui/button.tsx
+src/components/ui/card.tsx
+src/components/ui/dialog.tsx
+src/components/ui/dropdown-menu.tsx
+src/components/ui/input.tsx
+src/components/ui/sonner.tsx
+src/components/ui/tabs.tsx
+src/hooks/use-media-query.ts
+src/lib/api-client.ts
+src/lib/socket.ts
+src/lib/utils.ts
+src/stores/auth-store.ts
+tsconfig.json
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="src/app/orders/[id]/page.tsx">
+"use client";
+
+import { useParams, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { Package, Clock, ShieldCheck, MapPin, MessageSquare, ChevronLeft } from "lucide-react";
+import Link from "next/link";
+
+export default function OrderDetailPage() {
+  const { id } = useParams();
+  const router = useRouter();
+
+  const { data: order, isLoading } = useQuery({
+    queryKey: ["order", id],
+    queryFn: () => apiClient.get<any>(`/orders/${id}`),
+  });
+
+  const { data: item } = useQuery({
+    queryKey: ["item", order?.item_id],
+    queryFn: () => apiClient.get<any>(`/items/${order?.item_id}`),
+    enabled: !!order?.item_id,
+  });
+
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">正在加载订单详情...</div>;
+  if (!order) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">找不到该订单</div>;
+
+  const statusMap: Record<string, { label: string; color: string; desc: string }> = {
+    pending: { label: "等待确认", color: "text-amber-600 bg-amber-50 border-amber-200", desc: "卖家还未确认此订单，请耐心等待。" },
+    confirmed: { label: "进行中", color: "text-blue-600 bg-blue-50 border-blue-200", desc: "卖家已确认订单，请尽快完成线下交易。" },
+    completed: { label: "已完成", color: "text-green-600 bg-green-50 border-green-200", desc: "交易已顺利结束。" },
+    cancelled: { label: "已取消", color: "text-slate-600 bg-slate-50 border-slate-200", desc: "该订单已被取消。" },
+  };
+
+  const currentStatus = statusMap[order.status] || statusMap.pending;
+
+  return (
+    <div className="min-h-screen bg-muted/30 pb-20">
+      <div className="bg-background border-b px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+        <button onClick={() => router.back()} className="p-1.5 hover:bg-muted rounded-full">
+          <ChevronLeft size={24} />
+        </button>
+        <span className="font-bold">订单详情</span>
+      </div>
+
+      <div className={`${currentStatus.color} px-6 py-8 border-b`}>
+        <h1 className="text-2xl font-bold mb-2">{currentStatus.label}</h1>
+        <p className="text-sm opacity-90">{currentStatus.desc}</p>
+      </div>
+
+      <div className="p-4 space-y-4 max-w-2xl mx-auto">
+        <div className="bg-background rounded-2xl p-4 border shadow-sm">
+          <h2 className="text-sm font-bold text-muted-foreground mb-3 flex items-center gap-2">
+            <Package size={16} /> 关联商品
+          </h2>
+          {item ? (
+            <Link href={`/marketplace/${item.id}`} className="flex gap-3 items-center group">
+              <div className="h-16 w-16 bg-muted rounded-xl overflow-hidden shrink-0">
+                {item.cover_images?.[0] ? <img src={item.cover_images[0]} className="w-full h-full object-cover" /> : <Package className="m-auto h-full text-muted-foreground/30" />}
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-sm group-hover:text-primary transition-colors">{item.title}</p>
+                <p className="text-xs text-muted-foreground mt-1">点击查看商品快照</p>
+              </div>
+            </Link>
+          ) : (
+            <p className="text-sm text-muted-foreground">商品信息加载中或已失效</p>
+          )}
+        </div>
+
+        <div className="bg-background rounded-2xl p-4 border shadow-sm space-y-4">
+          <h2 className="text-sm font-bold text-muted-foreground flex items-center gap-2 border-b pb-2">
+            <ShieldCheck size={16} /> 交易信息
+          </h2>
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-muted-foreground">订单编号</span>
+            <span className="font-mono">{order.id}</span>
+          </div>
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-muted-foreground">成交价格</span>
+            <span className="font-bold text-primary text-lg">¥{order.price}</span>
+          </div>
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-muted-foreground">创建时间</span>
+            <span>{new Date(order.created_at).toLocaleString()}</span>
+          </div>
+          {order.note && (
+            <div className="pt-2 border-t mt-2">
+              <span className="text-xs text-muted-foreground mb-1 block flex items-center gap-1"><MessageSquare size={12}/> 买家留言</span>
+              <div className="bg-muted/50 p-3 rounded-xl text-sm leading-relaxed">{order.note}</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/orders/page.tsx">
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth-store";
+import { toast } from "sonner";
+import { Package, Clock, CheckCircle2, XCircle } from "lucide-react";
+
+interface Order {
+  id: number;
+  item_id: number;
+  buyer_id: number;
+  seller_id: number;
+  price: number;
+  status: "pending" | "confirmed" | "completed" | "cancelled";
+  note: string | null;
+  created_at: string;
+}
+
+const statusMap = {
+  pending: { label: "待确认", color: "text-amber-600 bg-amber-50 border-amber-200" },
+  confirmed: { label: "进行中", color: "text-blue-600 bg-blue-50 border-blue-200" },
+  completed: { label: "已完成", color: "text-green-600 bg-green-50 border-green-200" },
+  cancelled: { label: "已取消", color: "text-slate-600 bg-slate-50 border-slate-200" },
+};
+
+export default function OrdersPage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const currentUser = useAuthStore((s) => s.user);
+  const [activeTab, setActiveTab] = useState<"buy" | "sell">("buy");
+
+  // 获取用户的所有订单
+  const { data: orders = [], isLoading } = useQuery({
+    queryKey: ["orders"],
+    queryFn: () => apiClient.get<Order[]>("/orders"),
+  });
+
+  // 状态变更 Mutations
+  const confirmMutation = useMutation({
+    mutationFn: (id: number) => apiClient.patch(`/orders/${id}/confirm`),
+    onSuccess: () => {
+      toast.success("订单已确认");
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+    onError: (err: any) => toast.error(err.message || "确认失败"),
+  });
+
+  const completeMutation = useMutation({
+    mutationFn: (id: number) => apiClient.patch(`/orders/${id}/complete`),
+    onSuccess: () => {
+      toast.success("已标记完成！");
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+    onError: (err: any) => toast.error(err.message || "操作失败"),
+  });
+
+  const cancelMutation = useMutation({
+    mutationFn: (id: number) => apiClient.patch(`/orders/${id}/cancel`),
+    onSuccess: () => {
+      toast.success("订单已取消");
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+    onError: (err: any) => toast.error(err.message || "取消失败"),
+  });
+
+  // 过滤买入和卖出的订单
+  const filteredOrders = orders.filter((o) =>
+    activeTab === "buy"
+      ? o.buyer_id === Number(currentUser?.id)
+      : o.seller_id === Number(currentUser?.id)
+  );
+
+  return (
+    <div className="min-h-screen bg-background pb-20">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-3 flex items-center gap-3">
+        <button onClick={() => router.back()} className="rounded-full p-1.5 hover:bg-muted transition-colors text-lg leading-none">←</button>
+        <h1 className="font-bold text-lg flex-1">我的订单</h1>
+      </div>
+
+      <div className="border-b px-4 flex gap-4 bg-card">
+        <button
+          onClick={() => setActiveTab("buy")}
+          className={`py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab === "buy" ? "border-primary text-foreground" : "border-transparent text-muted-foreground"}`}
+        >
+          我买到的
+        </button>
+        <button
+          onClick={() => setActiveTab("sell")}
+          className={`py-3 text-sm font-medium border-b-2 transition-colors -mb-px ${activeTab === "sell" ? "border-primary text-foreground" : "border-transparent text-muted-foreground"}`}
+        >
+          我卖出的
+        </button>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {isLoading ? (
+          <div className="text-center text-muted-foreground py-10">加载中...</div>
+        ) : filteredOrders.length === 0 ? (
+          <div className="text-center text-muted-foreground py-20 flex flex-col items-center gap-2">
+            <Package size={48} className="opacity-20" />
+            <p>暂无相关订单</p>
+          </div>
+        ) : (
+          filteredOrders.map((order) => (
+            <div key={order.id} className="bg-card border rounded-2xl p-4 shadow-sm space-y-3">
+              <div className="flex justify-between items-center border-b pb-2">
+                <span className="text-xs font-mono text-muted-foreground">订单号: #{order.id}</span>
+                <span className={`text-xs px-2 py-1 rounded-full border ${statusMap[order.status].color}`}>
+                  {statusMap[order.status].label}
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="font-medium text-sm">商品 ID: {order.item_id}</p>
+                  {order.note && <p className="text-xs text-muted-foreground mt-1 bg-muted p-1.5 rounded">备注: {order.note}</p>}
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-primary">¥{order.price}</p>
+                </div>
+              </div>
+
+              {/* 操作按钮组 */}
+              <div className="pt-2 flex justify-end gap-2 border-t border-dashed">
+                {order.status === "pending" && (
+                  <>
+                    <button
+                      onClick={() => cancelMutation.mutate(order.id)}
+                      disabled={cancelMutation.isPending}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg border hover:bg-muted text-muted-foreground"
+                    >
+                      取消订单
+                    </button>
+                    <button
+                      onClick={() => confirmMutation.mutate(order.id)}
+                      disabled={confirmMutation.isPending}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:opacity-90"
+                    >
+                      确认订单
+                    </button>
+                  </>
+                )}
+                {order.status === "confirmed" && (
+                  <button
+                    onClick={() => completeMutation.mutate(order.id)}
+                    disabled={completeMutation.isPending}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 flex items-center gap-1"
+                  >
+                    <CheckCircle2 size={14} /> 标记为已完成
+                  </button>
+                )}
+                {(order.status === "completed" || order.status === "cancelled") && (
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock size={12} /> {new Date(order.created_at).toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/profile/[id]/page.tsx">
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { Star, CheckCircle2, Package, MessageCircle, ChevronLeft } from "lucide-react";
+
+export default function PublicProfilePage() {
+  const params = useParams();
+  const router = useRouter();
+  const userId = typeof params.id === "string" || typeof params.id === "number" ? params.id : "";
+  
+
+  const { data: user, isLoading: isUserLoading } = useQuery({
+    queryKey: ["users", userId],
+    queryFn: () => apiClient.get<any>(`/users/${userId}`),
+  });
+
+  const { data: itemsData, isLoading: isItemsLoading } = useQuery({
+    queryKey: ["items", "user", userId],
+    queryFn: () => apiClient.get<any>("/items", { params: { owner_id: userId } }),
+    enabled: !!userId,
+  });
+
+  if (isUserLoading) return <div className="p-10 text-center text-muted-foreground">正在加载主页信息...</div>;
+  if (!user) return <div className="p-10 text-center text-muted-foreground">该用户不存在或已被注销</div>;
+
+  const items = itemsData?.items || [];
+
+  return (
+    <div className="min-h-screen bg-background pb-20">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-3 flex items-center gap-4">
+        <button onClick={() => router.back()} className="p-1.5 hover:bg-muted rounded-full transition-colors">
+          <ChevronLeft size={24} />
+        </button>
+        <span className="font-bold">用户主页</span>
+      </div>
+
+      <div className="p-4 bg-gradient-to-b from-muted/50 to-transparent">
+        <div className="flex flex-col items-center text-center space-y-4 py-4">
+          <div className="h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center text-4xl font-bold text-primary shadow-inner border-4 border-background overflow-hidden">
+            {user.avatar_url ? (
+               <img src={user.avatar_url} className="w-full h-full object-cover" /> 
+            ) : (
+               user.username.charAt(0).toUpperCase()
+            )}
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">{user.username}</h1>
+            <p className="text-sm text-muted-foreground mt-2 max-w-[250px] mx-auto leading-relaxed">
+              {user.bio || "这位同学很低调，什么也没有留下。"}
+            </p>
+          </div>
+
+          <div className="flex gap-6 w-full justify-center py-2">
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center gap-1 text-amber-600 font-bold text-lg">
+                <Star size={16} className="fill-amber-500" /> {user.reputation_trade}
+              </div>
+              <span className="text-[10px] text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full">交易信誉</span>
+            </div>
+            <div className="w-px h-10 bg-border" />
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center gap-1 text-blue-600 font-bold text-lg">
+                <CheckCircle2 size={16} className="fill-blue-500 text-white" /> {user.reputation_skill}
+              </div>
+              <span className="text-[10px] text-muted-foreground font-medium bg-muted px-2 py-0.5 rounded-full">技能信誉</span>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+
+      <div className="px-4 mt-2">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-bold text-lg flex items-center gap-2">
+            Ta 发布的 <span className="text-muted-foreground font-normal text-sm bg-muted px-2 py-0.5 rounded-full">{items.length}</span>
+          </h2>
+        </div>
+
+        {isItemsLoading ? (
+          <div className="grid grid-cols-2 gap-3 animate-pulse">
+            {[1, 2, 3, 4].map(i => <div key={i} className="aspect-[4/5] bg-muted rounded-2xl" />)}
+          </div>
+        ) : items.length === 0 ? (
+          <div className="py-20 text-center flex flex-col items-center gap-3 text-muted-foreground opacity-50">
+            <Package size={48} />
+            <p className="text-sm">该用户还没有发布过任何闲置或技能</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {items.map((item: any) => (
+              <Link key={item.id} href={`/marketplace/${item.id}`}>
+                <article className="bg-card border rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow h-full flex flex-col">
+                  <div className="aspect-square bg-muted relative">
+                    {item.cover_images?.[0] ? (
+                      <img src={item.cover_images[0]} alt={item.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center"><Package size={32} className="text-muted-foreground/30" /></div>
+                    )}
+                  </div>
+                  <div className="p-3 flex flex-col justify-between flex-1">
+                    <h3 className="text-xs font-medium line-clamp-2 min-h-[2rem]">{item.title}</h3>
+                    <div className="flex items-baseline gap-0.5 text-primary font-bold mt-2">
+                      <span className="text-[10px]">¥</span>
+                      <span className="text-base">{item.price}</span>
+                    </div>
+                  </div>
+                </article>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/publish/page.tsx">
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { apiClient } from "@/lib/api-client";
+import { toast } from "sonner";
+
+// 定义匹配后端要求的 Zod Schema
+const publishSchema = z.object({
+  type: z.enum(["item", "skill"]),
+  title: z.string().min(2, "标题至少 2 个字").max(50, "标题太长"),
+  price: z.number().min(0, "价格不能为负"),
+  price_mode: z.enum(["fixed", "negotiable"]),
+  description: z.string().max(500, "描述不能超过500字").optional(),
+  location_text: z.string().min(1, "请填写交易地点"),
+  delivery_method: z.enum(["meetup", "offline", "online"]),
+});
+
+type PublishForm = z.infer<typeof publishSchema>;
+
+export default function PublishPage() {
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<PublishForm>({
+    resolver: zodResolver(publishSchema),
+    defaultValues: {
+      type: "item",
+      price_mode: "negotiable",
+      delivery_method: "meetup",
+    },
+  });
+
+  const watchType = watch("type");
+
+  async function onSubmit(data: PublishForm) {
+    setIsSubmitting(true);
+    try {
+      // 对接后端 POST /items 接口
+      const res = await apiClient.post<{ id: number }>("/items", data);
+      toast.success("发布成功！");
+      router.push(`/marketplace/${res.id}`);
+    } catch (error: any) {
+      toast.error(error.message || "发布失败，请重试");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto p-6 min-h-screen pb-20">
+      <div className="flex items-center gap-4 mb-6">
+        <button onClick={() => router.back()} className="p-2 rounded-full hover:bg-muted text-lg">←</button>
+        <h1 className="text-2xl font-bold">发布新内容</h1>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 bg-card p-6 rounded-2xl border shadow-sm">
+        
+        <div className="space-y-2">
+          <label className="text-sm font-medium">类型</label>
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => setValue("type", "item")}
+              className={`flex-1 py-3 rounded-xl border-2 transition-all ${watchType === "item" ? "border-primary bg-primary/5 text-primary" : "border-muted"}`}
+            >
+              📦 闲置物品
+            </button>
+            <button
+              type="button"
+              onClick={() => setValue("type", "skill")}
+              className={`flex-1 py-3 rounded-xl border-2 transition-all ${watchType === "skill" ? "border-purple-500 bg-purple-50 text-purple-600" : "border-muted"}`}
+            >
+              ⚡ 技能服务
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">标题</label>
+          <input
+            {...register("title")}
+            placeholder={watchType === "item" ? "例如：九成新 MacBook Air M1" : "例如：高数一对一辅导"}
+            className="w-full rounded-xl border bg-background px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/30"
+          />
+          {errors.title && <p className="text-xs text-destructive">{errors.title.message}</p>}
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">价格 (元)</label>
+            <input
+              type="number"
+              {...register("price", { valueAsNumber: true })}
+              placeholder="0.00"
+              className="w-full rounded-xl border bg-background px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/30"
+            />
+            {errors.price && <p className="text-xs text-destructive">{errors.price.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">是否可刀</label>
+            <select
+              {...register("price_mode")}
+              className="w-full rounded-xl border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-primary/30"
+            >
+              <option value="negotiable">可小刀</option>
+              <option value="fixed">一口价</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">交易地点</label>
+          <input
+            {...register("location_text")}
+            placeholder="例如：荔园食堂门口、线上"
+            className="w-full rounded-xl border bg-background px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/30"
+          />
+          {errors.location_text && <p className="text-xs text-destructive">{errors.location_text.message}</p>}
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">详细描述</label>
+          <textarea
+            {...register("description")}
+            rows={4}
+            placeholder="描述一下物品的成色、购买时间，或者技能的具体内容..."
+            className="w-full rounded-xl border bg-background px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="w-full rounded-xl bg-primary py-3.5 font-bold text-primary-foreground hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50"
+        >
+          {isSubmitting ? "正在发布..." : "确认发布"}
+        </button>
+      </form>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/wishlists/page.tsx">
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { toast } from "sonner";
+import { Heart, Plus, Edit2, Trash2, X, Power, PowerOff } from "lucide-react";
+
+// 定义心愿单数据结构
+interface Wishlist {
+  id: number;
+  user_id: number;
+  keyword: string;
+  max_price: number;
+  status: "active" | "inactive";
+  created_at: string;
+}
+
+export default function WishlistsPage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  // 弹窗与表单状态
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<Wishlist | null>(null);
+  const [form, setForm] = useState({ keyword: "", max_price: "" });
+
+  // 1. 获取我的心愿单列表
+  const { data: wishlists = [], isLoading } = useQuery({
+    queryKey: ["wishlists"],
+    queryFn: () => apiClient.get<Wishlist[]>("/wishlists"),
+  });
+
+  // 2. 新增心愿单 Mutation
+  const createMutation = useMutation({
+    mutationFn: (data: { keyword: string; max_price: number }) => 
+      apiClient.post("/wishlists", data),
+    onSuccess: () => {
+      toast.success("心愿单发布成功！");
+      closeModal();
+      queryClient.invalidateQueries({ queryKey: ["wishlists"] });
+    },
+    onError: (err: any) => toast.error(err.message || "发布失败"),
+  });
+
+  // 3. 更新心愿单 Mutation (修改价格或状态)
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<Wishlist> }) => 
+      apiClient.patch(`/wishlists/${id}`, data),
+    onSuccess: () => {
+      toast.success("更新成功！");
+      closeModal();
+      queryClient.invalidateQueries({ queryKey: ["wishlists"] });
+    },
+    onError: (err: any) => toast.error(err.message || "更新失败"),
+  });
+
+  // 4. 删除心愿单 Mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiClient.delete(`/wishlists/${id}`),
+    onSuccess: () => {
+      toast.success("心愿单已删除");
+      queryClient.invalidateQueries({ queryKey: ["wishlists"] });
+    },
+    onError: (err: any) => toast.error(err.message || "删除失败"),
+  });
+
+  // 打开/关闭弹窗处理
+  const openCreateModal = () => {
+    setEditingItem(null);
+    setForm({ keyword: "", max_price: "" });
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (item: Wishlist) => {
+    setEditingItem(item);
+    setForm({ keyword: item.keyword, max_price: item.max_price.toString() });
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingItem(null);
+  };
+
+  // 提交表单
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.keyword.trim()) return toast.error("请输入关键词");
+    if (!form.max_price || isNaN(Number(form.max_price))) return toast.error("请输入有效的预期价格");
+
+    const payload = {
+      keyword: form.keyword.trim(),
+      max_price: Number(form.max_price),
+    };
+
+    if (editingItem) {
+      updateMutation.mutate({ id: editingItem.id, data: { max_price: payload.max_price } });
+    } else {
+      createMutation.mutate(payload);
+    }
+  };
+
+  // 切换状态快捷操作
+  const toggleStatus = (item: Wishlist) => {
+    const newStatus = item.status === "active" ? "inactive" : "active";
+    updateMutation.mutate({ id: item.id, data: { status: newStatus } });
+  };
+
+  return (
+    <div className="min-h-screen bg-background pb-20">
+      {/* 顶部导航 */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.back()} className="rounded-full p-1.5 hover:bg-muted transition-colors text-lg leading-none">←</button>
+          <h1 className="font-bold text-lg">我的心愿单</h1>
+        </div>
+        <button 
+          onClick={openCreateModal}
+          className="flex items-center gap-1 bg-primary/10 text-primary px-3 py-1.5 rounded-full text-sm font-semibold hover:bg-primary/20 transition-colors"
+        >
+          <Plus size={16} /> 添加
+        </button>
+      </div>
+
+      {/* 心愿单列表 */}
+      <div className="p-4 space-y-4">
+        {isLoading ? (
+          <div className="text-center text-muted-foreground py-10">加载中...</div>
+        ) : wishlists.length === 0 ? (
+          <div className="text-center text-muted-foreground py-20 flex flex-col items-center gap-3">
+            <div className="bg-muted p-4 rounded-full"><Heart size={40} className="opacity-20" /></div>
+            <p>你还没有发布任何心愿单</p>
+            <button onClick={openCreateModal} className="mt-2 text-primary text-sm font-medium hover:underline">
+              立即发布一个
+            </button>
+          </div>
+        ) : (
+          wishlists.map((item) => (
+            <div key={item.id} className="bg-card border rounded-2xl p-4 shadow-sm flex flex-col gap-3 transition-opacity" style={{ opacity: item.status === 'inactive' ? 0.6 : 1 }}>
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-bold text-lg flex items-center gap-2">
+                    {item.keyword}
+                    <span className={`text-[10px] px-2 py-0.5 rounded-full border ${item.status === 'active' ? 'bg-green-50 text-green-600 border-green-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
+                      {item.status === 'active' ? '寻找中' : '已失效'}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    发布于 {new Date(item.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">预期最高价</p>
+                  <p className="text-lg font-bold text-primary">¥{item.max_price}</p>
+                </div>
+              </div>
+
+              {/* 操作底栏 */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-dashed mt-1">
+                <button 
+                  onClick={() => toggleStatus(item)}
+                  disabled={updateMutation.isPending}
+                  className="p-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors flex items-center gap-1 text-xs font-medium"
+                >
+                  {item.status === 'active' ? <><PowerOff size={14} /> 设为失效</> : <><Power size={14} /> 重新激活</>}
+                </button>
+                <button 
+                  onClick={() => openEditModal(item)}
+                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                >
+                  <Edit2 size={16} />
+                </button>
+                <button 
+                  onClick={() => {
+                    if (confirm("确定要删除这条心愿单吗？")) deleteMutation.mutate(item.id);
+                  }}
+                  disabled={deleteMutation.isPending}
+                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* 创建/编辑 弹窗 Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-background w-full max-w-sm rounded-3xl p-6 shadow-xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-bold">{editingItem ? "修改预期价格" : "发布新心愿单"}</h2>
+              <button onClick={closeModal} className="p-1 rounded-full hover:bg-muted text-muted-foreground">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">想寻找什么物品/技能？</label>
+                <input
+                  type="text"
+                  placeholder="例如：二手 iPad Pro"
+                  value={form.keyword}
+                  onChange={(e) => setForm({ ...form, keyword: e.target.value })}
+                  disabled={!!editingItem} // 编辑时通常不允许改关键词，只改价格或状态
+                  className="w-full rounded-xl border bg-muted/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
+                />
+              </div>
+              
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">你能接受的最高价格 (元)</label>
+                <input
+                  type="number"
+                  placeholder="例如：3000"
+                  value={form.max_price}
+                  onChange={(e) => setForm({ ...form, max_price: e.target.value })}
+                  className="w-full rounded-xl border bg-muted/50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                disabled={createMutation.isPending || updateMutation.isPending}
+                className="w-full rounded-xl bg-primary py-3.5 mt-2 font-bold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {createMutation.isPending || updateMutation.isPending ? "提交中..." : "确认保存"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+</file>
+
+<file path="components.json">
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": true,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/app/globals.css",
+    "baseColor": "neutral",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "rtl": false,
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  },
+  "registries": {}
+}
+</file>
+
+<file path="eslint.config.mjs">
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
+</file>
+
+<file path="FRONTEND_GUIDE.md">
+# SUSTech Market 前端开发指南
+
+> SUSTech 校园社交交易平台 — 前端脚手架说明与开发规范
+
+---
+
+## 目录
+
+1. [项目概述](#1-项目概述)
+2. [技术栈](#2-技术栈)
+3. [项目结构](#3-项目结构)
+4. [核心模块说明](#4-核心模块说明)
+   - 4.1 [响应式布局](#41-响应式布局)
+   - 4.2 [API 客户端](#42-api-客户端)
+   - 4.3 [认证状态管理](#43-认证状态管理)
+   - 4.4 [Socket.IO 实时通信](#44-socketio-实时通信)
+   - 4.5 [TanStack Query 数据请求](#45-tanstack-query-数据请求)
+5. [后续开发指导](#5-后续开发指导)
+   - 5.1 [添加新页面](#51-添加新页面)
+   - 5.2 [接入后端 API](#52-接入后端-api)
+   - 5.3 [表单开发（React Hook Form + Zod）](#53-表单开发)
+   - 5.4 [实时通信（Socket.IO）](#54-实时通信)
+   - 5.5 [地图功能（Leaflet）](#55-地图功能)
+   - 5.6 [OpenAPI 代码自动生成](#56-openapi-代码自动生成)
+6. [开发规范](#6-开发规范)
+7. [常用命令](#7-常用命令)
+
+---
+
+## 1. 项目概述
+
+本前端基于 **Next.js 14 App Router** 构建，支持 PC 和移动端响应式设计。
+
+| 路由 | 功能 |
+|------|------|
+| `/marketplace` | 商品交易列表（首页） |
+| `/marketplace/[id]` | 商品详情页 |
+| `/chat` | 实时聊天 |
+| `/map` | 校园地图 |
+| `/profile` | 个人中心 |
+| `/login` | 登录 |
+| `/register` | 注册 |
+
+后端通过 `next.config.ts` 的 rewrites 代理到 Flask（`http://localhost:5000`），前端只需请求 `/api/*`。
+
+---
+
+## 2. 技术栈
+
+| 分类 | 库 | 版本 | 用途 |
+|------|----|------|------|
+| 框架 | Next.js | 16 | App Router、SSR/SSG |
+| UI | React | 19 | 视图层 |
+| 语言 | TypeScript | 5 | 类型安全 |
+| 样式 | Tailwind CSS | 4 | 原子化 CSS |
+| 组件库 | shadcn/ui | latest | 可复用 UI 组件 |
+| 数据请求 | TanStack Query | 5 | 服务端状态、缓存、loading |
+| 全局状态 | Zustand | 5 | 客户端状态（如认证信息） |
+| 表单 | React Hook Form + Zod | 7 / 4 | 表单验证 |
+| 实时通信 | Socket.IO Client | 4 | WebSocket 聊天 |
+| 地图 | Leaflet + react-leaflet | 1 / 5 | 校园地图 |
+| API 生成 | openapi-typescript-codegen | 0.30 | 从 OpenAPI spec 自动生成 |
+
+---
+
+## 3. 项目结构
+
+```
+frontend/
+├── src/
+│   ├── app/                        # Next.js App Router 路由
+│   │   ├── layout.tsx              # 根布局（字体、QueryProvider、Toaster）
+│   │   ├── page.tsx                # 首页 → redirect /marketplace
+│   │   ├── globals.css             # Tailwind + shadcn/ui CSS 变量
+│   │   ├── (auth)/                 # 路由分组：不含导航栏
+│   │   │   ├── login/page.tsx
+│   │   │   └── register/page.tsx
+│   │   ├── marketplace/
+│   │   │   ├── layout.tsx          # 包裹 AppShell
+│   │   │   ├── page.tsx            # 商品列表
+│   │   │   └── [id]/page.tsx       # 商品详情（动态路由）
+│   │   ├── chat/
+│   │   │   ├── layout.tsx
+│   │   │   └── page.tsx
+│   │   ├── map/
+│   │   │   ├── layout.tsx
+│   │   │   └── page.tsx
+│   │   └── profile/
+│   │       ├── layout.tsx
+│   │       └── page.tsx
+│   ├── components/
+│   │   ├── ui/                     # shadcn/ui 组件（自动生成，勿手动修改）
+│   │   ├── layout/
+│   │   │   ├── app-shell.tsx       # 响应式容器（Sidebar + MobileNav）
+│   │   │   ├── sidebar.tsx         # PC 左侧导航（md 及以上显示）
+│   │   │   └── mobile-nav.tsx      # 移动端底部 Tab（md 以下显示）
+│   │   └── providers/
+│   │       └── query-provider.tsx  # TanStack QueryClientProvider
+│   ├── hooks/
+│   │   └── use-media-query.ts      # 响应式断点 hook
+│   ├── lib/
+│   │   ├── utils.ts                # cn() 合并 className 工具
+│   │   ├── api-client.ts           # fetch 封装（baseURL、JWT 注入、错误处理）
+│   │   └── socket.ts               # Socket.IO 单例配置
+│   ├── stores/
+│   │   └── auth-store.ts           # Zustand 认证状态
+│   └── api/                        # OpenAPI 自动生成（已加入 .gitignore）
+├── next.config.ts                  # API 代理 /api/* → Flask :5000
+├── package.json                    # scripts: dev / build / generate-api
+└── .gitignore
+```
+
+---
+
+## 4. 核心模块说明
+
+### 4.1 响应式布局
+
+**文件**: `src/components/layout/`
+
+断点：`md`（768px）
+- **>= 768px**：显示 `Sidebar`（左侧 60px 固定宽度导航）
+- **< 768px**：显示 `MobileNav`（底部 fixed Tab 栏）
+
+`AppShell` 是二者的容器，在需要导航栏的页面通过 `layout.tsx` 包裹：
+
+```tsx
+// app/marketplace/layout.tsx
+import { AppShell } from "@/components/layout/app-shell";
+
+export default function MarketplaceLayout({ children }) {
+  return <AppShell>{children}</AppShell>;
+}
+```
+
+登录/注册页属于 `(auth)` 路由分组，**不使用** AppShell，因此没有导航栏。
+
+---
+
+### 4.2 API 客户端
+
+**文件**: `src/lib/api-client.ts`
+
+封装了 `fetch`，自动从 `localStorage` 读取 JWT Token 并注入 `Authorization` 头：
+
+```ts
+import { apiClient } from "@/lib/api-client";
+
+// GET
+const items = await apiClient.get<Item[]>("/items");
+
+// POST
+const result = await apiClient.post<Item>("/items", { title: "旧书", price: 20 });
+
+// PUT / DELETE
+await apiClient.put("/items/1", { price: 15 });
+await apiClient.delete("/items/1");
+```
+
+错误处理：非 2xx 状态码抛出 `ApiError`，包含 `status` 和 `message` 字段。
+
+---
+
+### 4.3 认证状态管理
+
+**文件**: `src/stores/auth-store.ts`
+
+使用 Zustand 管理登录状态：
+
+```ts
+import { useAuthStore } from "@/stores/auth-store";
+
+// 组件内使用
+function Header() {
+  const { user, isAuthenticated, logout } = useAuthStore();
+  return <span>{user?.username}</span>;
+}
+
+// 登录成功后
+useAuthStore.getState().setAuth(user, token);
+
+// 退出登录
+useAuthStore.getState().logout();
+```
+
+Token 同时存入 `localStorage`，刷新页面后 `api-client.ts` 仍可读取。
+
+---
+
+### 4.4 Socket.IO 实时通信
+
+**文件**: `src/lib/socket.ts`
+
+采用单例模式，避免重复创建连接：
+
+```ts
+import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
+
+// 登录后连接
+connectSocket(token);
+
+// 监听事件
+const socket = getSocket();
+socket.on("new_message", (msg) => {
+  // 处理新消息
+});
+
+// 发送消息
+socket.emit("send_message", { roomId: "123", content: "你好" });
+
+// 退出时断开
+disconnectSocket();
+```
+
+---
+
+### 4.5 TanStack Query 数据请求
+
+**文件**: `src/components/providers/query-provider.tsx`
+
+已在根 `layout.tsx` 中全局注册。在组件内直接使用：
+
+```ts
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+
+// 查询
+function ItemList() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["items"],
+    queryFn: () => apiClient.get<Item[]>("/items"),
+  });
+}
+
+// 变更（POST/PUT/DELETE）
+const queryClient = useQueryClient();
+const mutation = useMutation({
+  mutationFn: (data) => apiClient.post("/items", data),
+  onSuccess: () => queryClient.invalidateQueries({ queryKey: ["items"] }),
+});
+```
+
+---
+
+## 5. 后续开发指导
+
+### 5.1 添加新页面
+
+**Step 1**: 在 `src/app/` 下创建目录和 `page.tsx`。
+
+```
+src/app/orders/page.tsx
+src/app/orders/layout.tsx   # 若需要导航栏
+```
+
+**Step 2**: 若需要导航栏，`layout.tsx` 包裹 `AppShell`：
+
+```tsx
+import { AppShell } from "@/components/layout/app-shell";
+
+export default function OrdersLayout({ children }) {
+  return <AppShell>{children}</AppShell>;
+}
+```
+
+**Step 3**: 若需要加入底部/侧边导航，编辑 `sidebar.tsx` 和 `mobile-nav.tsx` 中的 `navItems` 数组：
+
+```ts
+const navItems = [
+  { href: "/marketplace", label: "市场", icon: "🏪" },
+  { href: "/orders",      label: "订单", icon: "📦" }, // 新增
+  // ...
+];
+```
+
+---
+
+### 5.2 接入后端 API
+
+**推荐方式**：TanStack Query + apiClient 组合。
+
+**完整示例**（商品列表页）:
+
+```tsx
+// src/app/marketplace/page.tsx
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+
+interface Item {
+  id: number;
+  title: string;
+  price: number;
+  seller: string;
+}
+
+export default function MarketplacePage() {
+  const { data: items, isLoading, isError } = useQuery({
+    queryKey: ["items"],
+    queryFn: () => apiClient.get<Item[]>("/items"),
+  });
+
+  if (isLoading) return <p>加载中...</p>;
+  if (isError)   return <p>加载失败</p>;
+
+  return (
+    <div className="p-6 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+      {items?.map((item) => (
+        <div key={item.id} className="rounded border p-3">
+          <p className="font-bold">{item.title}</p>
+          <p className="text-muted-foreground">¥{item.price}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+> 注意：从服务端组件（无 `"use client"`）调用 API 时，直接用 `apiClient.get()` 即可，无需 useQuery。
+
+---
+
+### 5.3 表单开发
+
+**依赖**: React Hook Form + Zod + shadcn/ui 组件
+
+**完整示例**（发布商品表单）:
+
+```tsx
+"use client";
+
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+
+// 1. 定义 schema（Zod 自动推断类型）
+const schema = z.object({
+  title: z.string().min(2, "标题至少 2 个字"),
+  price: z.number({ invalid_type_error: "请输入价格" }).positive("价格必须大于 0"),
+  description: z.string().optional(),
+});
+
+type FormData = z.infer<typeof schema>;
+
+// 2. 使用表单
+export function PublishForm() {
+  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+  });
+
+  const onSubmit = (data: FormData) => {
+    // 调用 API
+  };
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <div>
+        <Input {...register("title")} placeholder="商品标题" />
+        {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
+      </div>
+      <div>
+        <Input {...register("price", { valueAsNumber: true })} type="number" placeholder="价格" />
+        {errors.price && <p className="text-sm text-destructive">{errors.price.message}</p>}
+      </div>
+      <Button type="submit">发布</Button>
+    </form>
+  );
+}
+```
+
+---
+
+### 5.4 实时通信
+
+**场景**：聊天页面接入 Socket.IO。
+
+```tsx
+"use client";
+
+import { useEffect, useState } from "react";
+import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
+import { useAuthStore } from "@/stores/auth-store";
+
+interface Message {
+  id: string;
+  content: string;
+  sender: string;
+}
+
+export function ChatRoom({ roomId }: { roomId: string }) {
+  const token = useAuthStore((s) => s.token);
+  const [messages, setMessages] = useState<Message[]>([]);
+
+  useEffect(() => {
+    const socket = connectSocket(token ?? undefined);
+
+    socket.emit("join_room", { roomId });
+    socket.on("new_message", (msg: Message) => {
+      setMessages((prev) => [...prev, msg]);
+    });
+
+    return () => {
+      socket.off("new_message");
+      disconnectSocket();
+    };
+  }, [roomId, token]);
+
+  const sendMessage = (content: string) => {
+    getSocket().emit("send_message", { roomId, content });
+  };
+
+  return (
+    <div>
+      {messages.map((m) => <p key={m.id}>{m.sender}: {m.content}</p>)}
+    </div>
+  );
+}
+```
+
+---
+
+### 5.5 地图功能
+
+Leaflet 需要在客户端渲染（`"use client"`），且 CSS 需单独引入。
+
+**基础地图组件**:
+
+```tsx
+"use client";
+
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+
+// 修复 Leaflet 默认图标路径（Next.js 中必须）
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "/leaflet/marker-icon-2x.png",
+  iconUrl: "/leaflet/marker-icon.png",
+  shadowUrl: "/leaflet/marker-shadow.png",
+});
+
+// SUSTech 校区中心坐标
+const SUSTECH_CENTER: [number, number] = [22.5996, 113.9939];
+
+export function CampusMap() {
+  return (
+    <MapContainer
+      center={SUSTECH_CENTER}
+      zoom={16}
+      style={{ height: "100%", width: "100%" }}
+    >
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <Marker position={SUSTECH_CENTER}>
+        <Popup>南方科技大学</Popup>
+      </Marker>
+    </MapContainer>
+  );
+}
+```
+
+将 Leaflet 图标文件（`marker-icon.png` 等）放到 `public/leaflet/` 目录，或使用 CDN 图标。
+
+> 注意：在页面中使用时需配合 `next/dynamic` 禁用 SSR：
+> ```ts
+> const CampusMap = dynamic(() => import("@/components/campus-map"), { ssr: false });
+> ```
+
+---
+
+### 5.6 OpenAPI 代码自动生成
+
+后端 Flask 通过 `http://localhost:5000/openapi.json` 暴露 OpenAPI spec，前端可自动生成类型安全的 API 客户端。
+
+**运行生成命令**（确保后端已启动）:
+
+```bash
+npm run generate-api
+```
+
+等同于：
+```bash
+openapi --input http://localhost:5000/openapi.json --output src/api --client fetch
+```
+
+生成后 `src/api/` 目录会包含：
+- `models/` — 所有请求/响应类型
+- `services/` — 按 tag 分组的 API 调用函数
+- `core/` — 基础 fetch 配置
+
+使用示例：
+```ts
+import { ItemsService } from "@/api/services/ItemsService";
+
+const items = await ItemsService.getItems();
+```
+
+> `src/api/` 已加入 `.gitignore`，每次环境搭建或后端 API 变更后需重新运行 `npm run generate-api`。
+
+---
+
+## 6. 开发规范
+
+### 组件规范
+
+| 规则 | 说明 |
+|------|------|
+| 服务端组件优先 | 无 `"use client"` 为默认，有交互/状态才加 |
+| 文件命名 | 组件用 `kebab-case.tsx`，类型用 `PascalCase` |
+| shadcn/ui 组件 | 从 `@/components/ui/` 引入，不修改源文件 |
+| 业务组件 | 放 `@/components/` 下，按功能分目录 |
+
+### 样式规范
+
+- 使用 Tailwind 原子类，避免行内 `style`
+- 响应式：移动优先（`md:`, `lg:` 等断点）
+- 动态 className 使用 `cn()` 工具函数（来自 `@/lib/utils`）
+
+```ts
+import { cn } from "@/lib/utils";
+
+<div className={cn("base-class", isActive && "active-class", className)} />
+```
+
+### 数据流规范
+
+```
+后端 Flask API
+    ↓
+next.config.ts 代理 /api/*
+    ↓
+api-client.ts (fetch + JWT)
+    ↓
+TanStack Query (缓存 + loading 状态)
+    ↓
+React 组件
+```
+
+全局状态（用户信息）用 **Zustand**，服务端数据用 **TanStack Query**，不要把 API 数据放进 Zustand。
+
+---
+
+## 7. 常用命令
+
+```bash
+# 启动开发服务器
+npm run dev
+
+# 生产构建
+npm run build
+
+# 启动生产服务器
+npm run start
+
+# 类型检查 + Lint
+npm run lint
+
+# 从后端 OpenAPI spec 自动生成 API 客户端（需后端运行中）
+npm run generate-api
+
+# 安装新 shadcn/ui 组件（示例）
+npx shadcn@latest add select
+npx shadcn@latest add sheet
+```
+
+---
+
+> 文档最后更新：2026-03-01
+> 对应后端：Flask + Python，监听 `http://localhost:5000`
+</file>
+
+<file path="postcss.config.mjs">
+const config = {
+  plugins: {
+    "@tailwindcss/postcss": {},
+  },
+};
+
+export default config;
+</file>
+
+<file path="public/file.svg">
+<svg fill="none" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 13.5V5.41a1 1 0 0 0-.3-.7L9.8.29A1 1 0 0 0 9.08 0H1.5v13.5A2.5 2.5 0 0 0 4 16h8a2.5 2.5 0 0 0 2.5-2.5m-1.5 0v-7H8v-5H3v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1M9.5 5V2.12L12.38 5zM5.13 5h-.62v1.25h2.12V5zm-.62 3h7.12v1.25H4.5zm.62 3h-.62v1.25h7.12V11z" clip-rule="evenodd" fill="#666" fill-rule="evenodd"/></svg>
+</file>
+
+<file path="public/globe.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><g clip-path="url(#a)"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.27 14.1a6.5 6.5 0 0 0 3.67-3.45q-1.24.21-2.7.34-.31 1.83-.97 3.1M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m.48-1.52a7 7 0 0 1-.96 0H7.5a4 4 0 0 1-.84-1.32q-.38-.89-.63-2.08a40 40 0 0 0 3.92 0q-.25 1.2-.63 2.08a4 4 0 0 1-.84 1.31zm2.94-4.76q1.66-.15 2.95-.43a7 7 0 0 0 0-2.58q-1.3-.27-2.95-.43a18 18 0 0 1 0 3.44m-1.27-3.54a17 17 0 0 1 0 3.64 39 39 0 0 1-4.3 0 17 17 0 0 1 0-3.64 39 39 0 0 1 4.3 0m1.1-1.17q1.45.13 2.69.34a6.5 6.5 0 0 0-3.67-3.44q.65 1.26.98 3.1M8.48 1.5l.01.02q.41.37.84 1.31.38.89.63 2.08a40 40 0 0 0-3.92 0q.25-1.2.63-2.08a4 4 0 0 1 .85-1.32 7 7 0 0 1 .96 0m-2.75.4a6.5 6.5 0 0 0-3.67 3.44 29 29 0 0 1 2.7-.34q.31-1.83.97-3.1M4.58 6.28q-1.66.16-2.95.43a7 7 0 0 0 0 2.58q1.3.27 2.95.43a18 18 0 0 1 0-3.44m.17 4.71q-1.45-.12-2.69-.34a6.5 6.5 0 0 0 3.67 3.44q-.65-1.27-.98-3.1" fill="#666"/></g><defs><clipPath id="a"><path fill="#fff" d="M0 0h16v16H0z"/></clipPath></defs></svg>
+</file>
+
+<file path="public/next.svg">
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 394 80"><path fill="#000" d="M262 0h68.5v12.7h-27.2v66.6h-13.6V12.7H262V0ZM149 0v12.7H94v20.4h44.3v12.6H94v21h55v12.6H80.5V0h68.7zm34.3 0h-17.8l63.8 79.4h17.9l-32-39.7 32-39.6h-17.9l-23 28.6-23-28.6zm18.3 56.7-9-11-27.1 33.7h17.8l18.3-22.7z"/><path fill="#000" d="M81 79.3 17 0H0v79.3h13.6V17l50.2 62.3H81Zm252.6-.4c-1 0-1.8-.4-2.5-1s-1.1-1.6-1.1-2.6.3-1.8 1-2.5 1.6-1 2.6-1 1.8.3 2.5 1a3.4 3.4 0 0 1 .6 4.3 3.7 3.7 0 0 1-3 1.8zm23.2-33.5h6v23.3c0 2.1-.4 4-1.3 5.5a9.1 9.1 0 0 1-3.8 3.5c-1.6.8-3.5 1.3-5.7 1.3-2 0-3.7-.4-5.3-1s-2.8-1.8-3.7-3.2c-.9-1.3-1.4-3-1.4-5h6c.1.8.3 1.6.7 2.2s1 1.2 1.6 1.5c.7.4 1.5.5 2.4.5 1 0 1.8-.2 2.4-.6a4 4 0 0 0 1.6-1.8c.3-.8.5-1.8.5-3V45.5zm30.9 9.1a4.4 4.4 0 0 0-2-3.3 7.5 7.5 0 0 0-4.3-1.1c-1.3 0-2.4.2-3.3.5-.9.4-1.6 1-2 1.6a3.5 3.5 0 0 0-.3 4c.3.5.7.9 1.3 1.2l1.8 1 2 .5 3.2.8c1.3.3 2.5.7 3.7 1.2a13 13 0 0 1 3.2 1.8 8.1 8.1 0 0 1 3 6.5c0 2-.5 3.7-1.5 5.1a10 10 0 0 1-4.4 3.5c-1.8.8-4.1 1.2-6.8 1.2-2.6 0-4.9-.4-6.8-1.2-2-.8-3.4-2-4.5-3.5a10 10 0 0 1-1.7-5.6h6a5 5 0 0 0 3.5 4.6c1 .4 2.2.6 3.4.6 1.3 0 2.5-.2 3.5-.6 1-.4 1.8-1 2.4-1.7a4 4 0 0 0 .8-2.4c0-.9-.2-1.6-.7-2.2a11 11 0 0 0-2.1-1.4l-3.2-1-3.8-1c-2.8-.7-5-1.7-6.6-3.2a7.2 7.2 0 0 1-2.4-5.7 8 8 0 0 1 1.7-5 10 10 0 0 1 4.3-3.5c2-.8 4-1.2 6.4-1.2 2.3 0 4.4.4 6.2 1.2 1.8.8 3.2 2 4.3 3.4 1 1.4 1.5 3 1.5 5h-5.8z"/></svg>
+</file>
+
+<file path="public/vercel.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1155 1000"><path d="m577.3 0 577.4 1000H0z" fill="#fff"/></svg>
+</file>
+
+<file path="public/window.svg">
+<svg fill="none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.5 2.5h13v10a1 1 0 0 1-1 1h-11a1 1 0 0 1-1-1zM0 1h16v11.5a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 0 12.5zm3.75 4.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5M7 4.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0m1.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5" fill="#666"/></svg>
+</file>
+
+<file path="README.md">
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Getting Started
+
+First, run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+</file>
+
+<file path="src/app/admin/items/page.tsx">
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Trash2, EyeOff } from "lucide-react";
+
+const initialItems = [
+  { id: "123", title: "线性代数教材", seller: "小明", status: "在售", price: 15 },
+  { id: "124", title: "代写作业服务", seller: "User_Unknown", status: "违规", price: 200 },
+];
+
+export default function ItemManagement() {
+  const [items, setItems] = useState(initialItems);
+
+  const deleteItem = (id: string) => {
+    setItems(items.filter(i => i.id !== id));
+  };
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">商品管理</h1>
+      <div className="rounded-xl border bg-card shadow-sm">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-muted/50 border-b">
+            <tr>
+              <th className="px-6 py-4">商品ID</th>
+              <th className="px-6 py-4">标题</th>
+              <th className="px-6 py-4">发布者</th>
+              <th className="px-6 py-4">价格</th>
+              <th className="px-6 py-4">状态</th>
+              <th className="px-6 py-4 text-right">管理</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {items.map((item) => (
+              <tr key={item.id}>
+                <td className="px-6 py-4 font-mono text-muted-foreground">{item.id}</td>
+                <td className="px-6 py-4 font-medium">{item.title}</td>
+                <td className="px-6 py-4">{item.seller}</td>
+                <td className="px-6 py-4">¥{item.price}</td>
+                <td className="px-6 py-4">{item.status}</td>
+                <td className="px-6 py-4 text-right space-x-2">
+                  <Button size="sm" variant="outline" className="text-orange-600 border-orange-200 hover:bg-orange-50">
+                    <EyeOff className="h-4 w-4 mr-1" /> 下架
+                  </Button>
+                  <Button size="sm" variant="destructive" onClick={() => deleteItem(item.id)}>
+                    <Trash2 className="h-4 w-4 mr-1" /> 删除
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/admin/layout.tsx">
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Shield, Users, Package, Flag, Gavel, LogOut } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+
+// 左侧导航菜单配置
+const adminNavItems = [
+  { href: "/admin", label: "仪表盘", icon: Shield }, // 新增仪表盘入口
+  { href: "/admin/users", label: "用户管理", icon: Users },
+  { href: "/admin/items", label: "商品管理", icon: Package },
+  { href: "/admin/reports", label: "举报处理", icon: Flag },
+  { href: "/admin/orders", label: "订单仲裁", icon: Gavel },
+];
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  return (
+    <div className="flex min-h-screen bg-muted/20">
+      {/* --- 左侧黑色侧边栏开始 --- */}
+      <aside className="w-64 bg-slate-900 text-slate-100 flex flex-col fixed inset-y-0 z-50">
+        <div className="h-16 flex items-center px-6 border-b border-slate-800 font-bold text-lg tracking-wider">
+          <Shield className="mr-2 h-6 w-6 text-red-500" />
+          ADMIN CENTER
+        </div>
+        
+        <nav className="flex-1 p-4 space-y-2">
+          {adminNavItems.map((item) => {
+            const Icon = item.icon;
+            // 判断当前路径是否匹配，高亮显示
+            const isActive = pathname === item.href || (item.href !== "/admin" && pathname.startsWith(item.href));
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-red-600 text-white shadow-md"
+                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                )}
+              >
+                <Icon size={18} />
+                {item.label}
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-slate-800">
+          <div className="flex items-center gap-3 px-4 py-3 mb-2">
+            <div className="h-8 w-8 rounded-full bg-red-500 flex items-center justify-center font-bold">
+              A
+            </div>
+            <div>
+              <p className="text-sm font-medium">管理员</p>
+              <p className="text-xs text-slate-400">特殊权限账号</p>
+            </div>
+          </div>
+          <Link href="/login">
+            <Button variant="ghost" className="w-full justify-start text-red-400 hover:text-red-300 hover:bg-red-950/30">
+              <LogOut className="mr-2 h-4 w-4" /> 退出管理
+            </Button>
+          </Link>
+        </div>
+      </aside>
+      {/* --- 左侧黑色侧边栏结束 --- */}
+
+      {/* --- 右侧主内容区域 --- */}
+      {/* ml-64 (margin-left: 16rem) 是为了给 fixed 的侧边栏留出位置 */}
+      <main className="flex-1 ml-64 p-8 overflow-y-auto min-h-screen">
+        <div className="max-w-6xl mx-auto space-y-6">
+          {/* 这里渲染的就是 page.tsx 的内容 */}
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/admin/orders/page.tsx">
+"use client";
+
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+
+export default function OrderManagement() {
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold">订单仲裁</h1>
+      <p className="text-muted-foreground">查看所有交易记录，处理买卖双方纠纷。</p>
+
+      <div className="rounded-xl border bg-card shadow-sm">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-muted/50 border-b">
+            <tr>
+              <th className="px-6 py-4">订单ID</th>
+              <th className="px-6 py-4">商品</th>
+              <th className="px-6 py-4">买家</th>
+              <th className="px-6 py-4">卖家</th>
+              <th className="px-6 py-4">状态</th>
+              <th className="px-6 py-4 text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            <tr>
+              <td className="px-6 py-4 font-mono">ORD-2024-001</td>
+              <td className="px-6 py-4">AirPods Pro</td>
+              <td className="px-6 py-4">李同学</td>
+              <td className="px-6 py-4">王同学</td>
+              <td className="px-6 py-4"><Badge variant="outline" className="text-yellow-600 border-yellow-200 bg-yellow-50">纠纷中</Badge></td>
+              <td className="px-6 py-4 text-right">
+                <Button size="sm" variant="secondary">查看聊天记录</Button>
+                <Button size="sm" variant="destructive" className="ml-2">强制取消</Button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <div className="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm border border-blue-100">
+        <strong>提示：</strong> 如果交易双方发生争议（例如商品描述不符），管理员可以调取该订单关联的聊天记录进行取证。
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/admin/page.tsx">
+"use client";
+
+import Link from "next/link";
+import { 
+  Users, 
+  Package, 
+  Flag, 
+  ShoppingBag, 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  Activity,
+  AlertCircle
+} from "lucide-react";
+
+// 模拟仪表盘数据
+const stats = [
+  { 
+    label: "总用户数", 
+    value: "2,543", 
+    change: "+12%", 
+    trend: "up", 
+    icon: Users, 
+    color: "text-blue-600", 
+    bg: "bg-blue-100" 
+  },
+  { 
+    label: "在线商品", 
+    value: "856", 
+    change: "+5%", 
+    trend: "up", 
+    icon: Package, 
+    color: "text-purple-600", 
+    bg: "bg-purple-100" 
+  },
+  { 
+    label: "待处理举报", 
+    value: "12", 
+    change: "+2", 
+    trend: "up", // 举报增加通常是坏事，用红色表示
+    icon: Flag, 
+    color: "text-red-600", 
+    bg: "bg-red-100" 
+  },
+  { 
+    label: "今日成交", 
+    value: "48", 
+    change: "-3%", 
+    trend: "down", 
+    icon: ShoppingBag, 
+    color: "text-green-600", 
+    bg: "bg-green-100" 
+  },
+];
+
+const recentActivities = [
+  { id: 1, user: "小明", action: "发布了新商品", target: "线性代数教材（同济版）", time: "5分钟前" },
+  { id: 2, user: "系统安全", action: "自动拦截了", target: "疑似广告帖", time: "12分钟前" },
+  { id: 3, user: "李华", action: "举报了用户", target: "Spammer_007", time: "30分钟前" },
+  { id: 4, user: "张伟", action: "完成了订单", target: "罗技 G304 鼠标", time: "1小时前" },
+  { id: 5, user: "王五", action: "注册了新账号", target: "", time: "2小时前" },
+];
+
+export default function AdminDashboardPage() {
+  return (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {/* 顶部欢迎语 */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">管理后台概览</h1>
+          <p className="text-muted-foreground">欢迎回来，管理员。这里是今日的平台数据概况。</p>
+        </div>
+        <div className="hidden md:block">
+           <span className="text-sm bg-muted px-3 py-1 rounded-full text-muted-foreground">
+             系统状态: 🟢 正常运行中
+           </span>
+        </div>
+      </div>
+
+      {/* 数据卡片网格 */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {stats.map((stat, index) => {
+          const Icon = stat.icon;
+          // 简单的逻辑判断趋势颜色
+          const isPositive = stat.trend === 'up';
+          const trendColor = stat.label === "待处理举报" 
+            ? (isPositive ? "text-red-600" : "text-green-600") // 举报增加是坏事
+            : (isPositive ? "text-green-600" : "text-red-600"); // 其他增加是好事
+
+          return (
+            <div key={index} className="p-6 bg-card rounded-xl border shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <h2 className="text-2xl font-bold">{stat.value}</h2>
+                  <span className={`text-xs font-medium flex items-center ${trendColor}`}>
+                    {stat.change}
+                    {stat.trend === 'up' ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                  </span>
+                </div>
+              </div>
+              <div className={`p-3 rounded-full ${stat.bg} ${stat.color}`}>
+                <Icon size={20} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        {/* 左侧：快捷操作与系统通知 */}
+        <div className="col-span-4 space-y-4">
+           {/* 待处理事项提醒 */}
+           <div className="bg-red-50 border border-red-100 rounded-xl p-4 flex gap-3 items-start">
+              <AlertCircle className="text-red-600 shrink-0 mt-0.5" size={20} />
+              <div>
+                <h3 className="font-semibold text-red-900">需要关注</h3>
+                <p className="text-sm text-red-700 mt-1">
+                  目前有 <span className="font-bold">12</span> 条新的举报信息需要处理，其中 3 条被标记为“高风险诈骗”。
+                </p>
+                <Link href="/admin/reports">
+                  <button className="mt-2 text-xs font-semibold bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition-colors">
+                    立即处理
+                  </button>
+                </Link>
+              </div>
+           </div>
+
+           {/* 趋势图表占位符 */}
+           <div className="bg-card rounded-xl border shadow-sm p-6 h-[300px] flex flex-col">
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                <Activity size={18} />
+                流量趋势 (近7天)
+              </h3>
+              <div className="flex-1 bg-muted/20 rounded-lg flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed gap-2">
+                <Activity size={32} className="opacity-20" />
+                <span className="text-sm">图表组件区域</span>
+                <span className="text-xs opacity-50">(接入 Recharts 或 Chart.js 后显示)</span>
+              </div>
+           </div>
+        </div>
+
+        {/* 右侧：最新动态 Feed */}
+        <div className="col-span-3 bg-card rounded-xl border shadow-sm p-6 h-full">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="font-semibold">最新动态</h3>
+            <button className="text-xs text-blue-600 hover:underline">刷新</button>
+          </div>
+          <div className="relative border-l border-muted ml-2 space-y-6">
+            {recentActivities.map((activity) => (
+              <div key={activity.id} className="ml-6 relative">
+                <span className="absolute -left-[29px] top-1 h-3 w-3 rounded-full border-2 border-background bg-blue-500 ring-4 ring-background" />
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm">
+                    <span className="font-medium text-foreground">{activity.user}</span> 
+                    <span className="text-muted-foreground mx-1">{activity.action}</span> 
+                    <span className="font-medium text-foreground">{activity.target}</span>
+                  </p>
+                  <span className="text-xs text-muted-foreground">{activity.time}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/admin/reports/page.tsx">
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { AlertTriangle, CheckCircle, Clock } from "lucide-react";
+
+// Mock Data
+const reports = [
+  { id: 12, reporter: "小红", suspect: "User_X", item: "iPhone 14 Pro", reason: "诈骗：收钱不发货", status: "未处理", time: "10分钟前" },
+  { id: 11, reporter: "张三", suspect: "李四", item: "二手显卡", reason: "货不对板", status: "已处理", result: "下架商品", time: "2小时前" },
+];
+
+export default function ReportManagement() {
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="p-4 flex items-center gap-4 bg-red-50 border-red-100">
+          <div className="p-3 bg-red-100 rounded-full text-red-600"><AlertTriangle /></div>
+          <div>
+            <p className="text-sm text-muted-foreground">待处理举报</p>
+            <p className="text-2xl font-bold text-red-700">12</p>
+          </div>
+        </Card>
+      </div>
+
+      <h2 className="text-xl font-bold mt-8">举报列表</h2>
+      
+      <div className="grid gap-4">
+        {reports.map((report) => (
+          <div key={report.id} className="bg-card border rounded-xl p-5 shadow-sm flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Badge variant={report.status === "未处理" ? "destructive" : "secondary"}>
+                  {report.status}
+                </Badge>
+                <span className="font-mono text-xs text-muted-foreground">ID: #{report.id}</span>
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Clock size={12} /> {report.time}
+                </span>
+              </div>
+              <h3 className="font-semibold text-lg">
+                举报对象：{report.item} <span className="text-muted-foreground font-normal">({report.suspect})</span>
+              </h3>
+              <p className="text-sm text-red-600 bg-red-50 px-2 py-1 rounded w-fit">
+                原因: {report.reason}
+              </p>
+              <p className="text-xs text-muted-foreground">举报人: {report.reporter}</p>
+            </div>
+
+            {report.status === "未处理" ? (
+              <div className="flex gap-2">
+                <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50">
+                  封禁用户
+                </Button>
+                <Button variant="outline">删除商品</Button>
+                <Button>标记已处理</Button>
+              </div>
+            ) : (
+               <div className="text-right">
+                  <p className="text-sm font-medium text-green-600 flex items-center gap-1">
+                    <CheckCircle size={14} /> 已完成
+                  </p>
+                  <p className="text-xs text-muted-foreground">处理动作: {report.result}</p>
+               </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Audit Log Section (Mock) */}
+      <div className="mt-12 pt-6 border-t">
+        <h3 className="text-lg font-bold mb-4">🛡️ 处理记录 (Audit Log)</h3>
+        <div className="bg-slate-900 text-slate-300 p-4 rounded-xl font-mono text-xs space-y-2">
+          <p><span className="text-slate-500">[2026-03-05 10:00]</span> Admin_01 banned user "Spammer" (Reason: Ad spam)</p>
+          <p><span className="text-slate-500">[2026-03-05 09:45]</span> Admin_02 deleted item #992 (Reason: Prohibited item)</p>
+        </div>
+        <p className="text-xs text-muted-foreground mt-2">
+          * 系统自动记录所有管理员操作，被封禁用户在登录时将看到具体的封禁原因 (reason字段)。
+        </p>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/admin/users/page.tsx">
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Table, Search, Ban, RotateCcw } from "lucide-react";
+
+// Mock Data
+const initialUsers = [
+  { id: "U001", name: "小明", email: "xiaoming@mail.sustech.edu.cn", score: 4.6, deals: 12, status: "正常" },
+  { id: "U002", name: "小红", email: "xiaohong@mail.sustech.edu.cn", score: 2.1, deals: 3, status: "警告" },
+  { id: "U003", name: "Spammer", email: "spam@fake.com", score: 0, deals: 0, status: "已封禁" },
+];
+
+export default function UserManagement() {
+  const [users, setUsers] = useState(initialUsers);
+
+  const toggleBan = (id: string) => {
+    setUsers(users.map(u => u.id === id ? { ...u, status: u.status === "已封禁" ? "正常" : "已封禁" } : u));
+  };
+
+  const resetScore = (id: string) => {
+    if(confirm("确定重置该用户信誉分吗？")) {
+        setUsers(users.map(u => u.id === id ? { ...u, score: 5.0 } : u));
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">用户管理</h1>
+          <p className="text-muted-foreground">管理平台注册用户、处理违规账号。</p>
+        </div>
+        <div className="relative w-72">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input placeholder="搜索用户ID或邮箱..." className="pl-8" />
+        </div>
+      </div>
+
+      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
+        <table className="w-full text-sm text-left">
+          <thead className="bg-muted/50 text-muted-foreground font-medium border-b">
+            <tr>
+              <th className="px-6 py-4">用户ID</th>
+              <th className="px-6 py-4">邮箱</th>
+              <th className="px-6 py-4">信誉分</th>
+              <th className="px-6 py-4">交易次数</th>
+              <th className="px-6 py-4">状态</th>
+              <th className="px-6 py-4 text-right">操作</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {users.map((user) => (
+              <tr key={user.id} className="hover:bg-muted/50 transition-colors">
+                <td className="px-6 py-4 font-medium">{user.name} <span className="text-xs text-muted-foreground ml-1">({user.id})</span></td>
+                <td className="px-6 py-4">{user.email}</td>
+                <td className="px-6 py-4">
+                  <span className={`font-bold ${user.score < 3 ? "text-red-500" : "text-green-600"}`}>{user.score}</span>
+                </td>
+                <td className="px-6 py-4">{user.deals}</td>
+                <td className="px-6 py-4">
+                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium 
+                    ${user.status === '正常' ? 'bg-green-100 text-green-700' : 
+                      user.status === '已封禁' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                    {user.status}
+                  </span>
+                </td>
+                <td className="px-6 py-4 text-right space-x-2">
+                  <Button size="sm" variant="outline" onClick={() => resetScore(user.id)} title="重置信誉分">
+                    <RotateCcw className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant={user.status === "已封禁" ? "default" : "destructive"}
+                    onClick={() => toggleBan(user.id)}
+                  >
+                    {user.status === "已封禁" ? "解封" : "封禁"}
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/chat/layout.tsx">
+import { AppShell } from "@/components/layout/app-shell";
+import type { ReactNode } from "react";
+
+export default function ChatLayout({ children }: { children: ReactNode }) {
+  return <AppShell>{children}</AppShell>;
+}
+</file>
+
+<file path="src/app/map/layout.tsx">
+import { AppShell } from "@/components/layout/app-shell";
+import type { ReactNode } from "react";
+
+export default function MapLayout({ children }: { children: ReactNode }) {
+  return <AppShell>{children}</AppShell>;
+}
+</file>
+
+<file path="src/app/marketplace/layout.tsx">
+import { AppShell } from "@/components/layout/app-shell";
+import type { ReactNode } from "react";
+
+export default function MarketplaceLayout({ children }: { children: ReactNode }) {
+  return <AppShell>{children}</AppShell>;
+}
+</file>
+
+<file path="src/app/profile/layout.tsx">
+import { AppShell } from "@/components/layout/app-shell";
+import type { ReactNode } from "react";
+
+export default function ProfileLayout({ children }: { children: ReactNode }) {
+  return <AppShell>{children}</AppShell>;
+}
+</file>
+
+<file path="src/app/types/index.ts">
+// src/types/index.ts
+
+// 1. 用户与信任实体
+export interface User {
+  id: string;
+  username: string;
+  avatar: string;
+  isStudentVerified: boolean; // EDU 邮箱认证
+  trustScore: number;         // 信誉分 (0-5.0)
+  college: string;            // 学院
+}
+
+// 2. 商品/技能 混合实体
+export type ItemType = 'goods' | 'skill' | 'lost-found';
+
+export interface MarketItem {
+  id: string;
+  type: ItemType;
+  title: string;
+  price: number;              // 对应 技能则是 "0" 或 估值
+  exchangeTarget?: string;    // 技能交换目标，例如 "吉他教学"
+  timeDuration?: string;      // 技能时长，例如 "1小时"
+  seller: User;
+  tags: string[];
+  status: 'active' | 'sold';
+  location: string;           // 关联地图地点 ID
+  aiMatchScore?: number;      // 智能匹配度 (前端展示用)
+}
+
+// 3. 地图点实体
+export interface MapSpot {
+  id: number;
+  name: string;
+  type: 'trade' | 'lost' | 'facility'; // 交易点 | 失物 | 设施
+  coordinates: { x: number; y: number };
+}
+</file>
+
+<file path="src/components/layout/app-shell.tsx">
+"use client";
+
+import type { ReactNode } from "react";
+import { Sidebar } from "./sidebar";
+import { MobileNav } from "./mobile-nav";
+
+export function AppShell({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex h-screen">
+      <Sidebar />
+      <main className="flex-1 overflow-y-auto pb-16 md:pb-0">{children}</main>
+      <MobileNav />
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/layout/mobile-nav.tsx">
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+
+const navItems = [
+  { href: "/marketplace", label: "市场", icon: "🏪" },
+  { href: "/chat", label: "聊天", icon: "💬" },
+  { href: "/map", label: "地图", icon: "🗺️" },
+  { href: "/profile", label: "我的", icon: "👤" },
+];
+
+export function MobileNav() {
+  const pathname = usePathname();
+
+  return (
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex border-t bg-background md:hidden">
+      {navItems.map((item) => (
+        <Link
+          key={item.href}
+          href={item.href}
+          className={cn(
+            "flex flex-1 flex-col items-center gap-1 py-2 text-xs transition-colors",
+            pathname.startsWith(item.href)
+              ? "text-primary"
+              : "text-muted-foreground"
+          )}
+        >
+          <span className="text-lg">{item.icon}</span>
+          {item.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+</file>
+
+<file path="src/components/layout/sidebar.tsx">
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+
+const navItems = [
+  { href: "/marketplace", label: "市场", icon: "🏪" },
+  { href: "/chat", label: "聊天", icon: "💬" },
+  { href: "/map", label: "地图", icon: "🗺️" },
+  { href: "/profile", label: "我的", icon: "👤" },
+];
+
+export function Sidebar() {
+  const pathname = usePathname();
+
+  return (
+    <aside className="hidden md:flex md:w-60 md:flex-col md:border-r md:bg-card">
+      <div className="flex h-14 items-center border-b px-4">
+        <Link href="/" className="text-lg font-bold">
+          SUSTech Market
+        </Link>
+      </div>
+      <nav className="flex flex-1 flex-col gap-1 p-2">
+        {navItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={cn(
+              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent",
+              pathname.startsWith(item.href)
+                ? "bg-accent text-accent-foreground"
+                : "text-muted-foreground"
+            )}
+          >
+            <span>{item.icon}</span>
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+    </aside>
+  );
+}
+</file>
+
+<file path="src/components/providers/query-provider.tsx">
+"use client";
+
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useState, type ReactNode } from "react";
+
+export function QueryProvider({ children }: { children: ReactNode }) {
+  const [queryClient] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 60 * 1000,
+            refetchOnWindowFocus: false,
+          },
+        },
+      })
+  );
+
+  return (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+</file>
+
+<file path="src/components/ui/avatar.tsx">
+"use client"
+
+import * as React from "react"
+import { Avatar as AvatarPrimitive } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+
+function Avatar({
+  className,
+  size = "default",
+  ...props
+}: React.ComponentProps<typeof AvatarPrimitive.Root> & {
+  size?: "default" | "sm" | "lg"
+}) {
+  return (
+    <AvatarPrimitive.Root
+      data-slot="avatar"
+      data-size={size}
+      className={cn(
+        "group/avatar relative flex size-8 shrink-0 overflow-hidden rounded-full select-none data-[size=lg]:size-10 data-[size=sm]:size-6",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function AvatarImage({
+  className,
+  ...props
+}: React.ComponentProps<typeof AvatarPrimitive.Image>) {
+  return (
+    <AvatarPrimitive.Image
+      data-slot="avatar-image"
+      className={cn("aspect-square size-full", className)}
+      {...props}
+    />
+  )
+}
+
+function AvatarFallback({
+  className,
+  ...props
+}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+  return (
+    <AvatarPrimitive.Fallback
+      data-slot="avatar-fallback"
+      className={cn(
+        "bg-muted text-muted-foreground flex size-full items-center justify-center rounded-full text-sm group-data-[size=sm]/avatar:text-xs",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function AvatarBadge({ className, ...props }: React.ComponentProps<"span">) {
+  return (
+    <span
+      data-slot="avatar-badge"
+      className={cn(
+        "bg-primary text-primary-foreground ring-background absolute right-0 bottom-0 z-10 inline-flex items-center justify-center rounded-full ring-2 select-none",
+        "group-data-[size=sm]/avatar:size-2 group-data-[size=sm]/avatar:[&>svg]:hidden",
+        "group-data-[size=default]/avatar:size-2.5 group-data-[size=default]/avatar:[&>svg]:size-2",
+        "group-data-[size=lg]/avatar:size-3 group-data-[size=lg]/avatar:[&>svg]:size-2",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="avatar-group"
+      className={cn(
+        "*:data-[slot=avatar]:ring-background group/avatar-group flex -space-x-2 *:data-[slot=avatar]:ring-2",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function AvatarGroupCount({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="avatar-group-count"
+      className={cn(
+        "bg-muted text-muted-foreground ring-background relative flex size-8 shrink-0 items-center justify-center rounded-full text-sm ring-2 group-has-data-[size=lg]/avatar-group:size-10 group-has-data-[size=sm]/avatar-group:size-6 [&>svg]:size-4 group-has-data-[size=lg]/avatar-group:[&>svg]:size-5 group-has-data-[size=sm]/avatar-group:[&>svg]:size-3",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export {
+  Avatar,
+  AvatarImage,
+  AvatarFallback,
+  AvatarBadge,
+  AvatarGroup,
+  AvatarGroupCount,
+}
+</file>
+
+<file path="src/components/ui/badge.tsx">
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+import { Slot } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+
+const badgeVariants = cva(
+  "inline-flex items-center justify-center rounded-full border border-transparent px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
+        secondary:
+          "bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
+        destructive:
+          "bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+        outline:
+          "border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+        ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 [a&]:hover:underline",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+function Badge({
+  className,
+  variant = "default",
+  asChild = false,
+  ...props
+}: React.ComponentProps<"span"> &
+  VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
+  const Comp = asChild ? Slot.Root : "span"
+
+  return (
+    <Comp
+      data-slot="badge"
+      data-variant={variant}
+      className={cn(badgeVariants({ variant }), className)}
+      {...props}
+    />
+  )
+}
+
+export { Badge, badgeVariants }
+</file>
+
+<file path="src/components/ui/button.tsx">
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+import { Slot } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
+        outline:
+          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
+        secondary:
+          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost:
+          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-9 px-4 py-2 has-[>svg]:px-3",
+        xs: "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
+        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
+        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
+        icon: "size-9",
+        "icon-xs": "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
+        "icon-sm": "size-8",
+        "icon-lg": "size-10",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+function Button({
+  className,
+  variant = "default",
+  size = "default",
+  asChild = false,
+  ...props
+}: React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean
+  }) {
+  const Comp = asChild ? Slot.Root : "button"
+
+  return (
+    <Comp
+      data-slot="button"
+      data-variant={variant}
+      data-size={size}
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  )
+}
+
+export { Button, buttonVariants }
+</file>
+
+<file path="src/components/ui/card.tsx">
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+function Card({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card"
+      className={cn(
+        "bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-header"
+      className={cn(
+        "@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-2 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardTitle({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-title"
+      className={cn("leading-none font-semibold", className)}
+      {...props}
+    />
+  )
+}
+
+function CardDescription({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-description"
+      className={cn("text-muted-foreground text-sm", className)}
+      {...props}
+    />
+  )
+}
+
+function CardAction({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-action"
+      className={cn(
+        "col-start-2 row-span-2 row-start-1 self-start justify-self-end",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function CardContent({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-content"
+      className={cn("px-6", className)}
+      {...props}
+    />
+  )
+}
+
+function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="card-footer"
+      className={cn("flex items-center px-6 [.border-t]:pt-6", className)}
+      {...props}
+    />
+  )
+}
+
+export {
+  Card,
+  CardHeader,
+  CardFooter,
+  CardTitle,
+  CardAction,
+  CardDescription,
+  CardContent,
+}
+</file>
+
+<file path="src/components/ui/dialog.tsx">
+"use client"
+
+import * as React from "react"
+import { XIcon } from "lucide-react"
+import { Dialog as DialogPrimitive } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+
+function Dialog({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+}
+
+function DialogTrigger({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Trigger>) {
+  return <DialogPrimitive.Trigger data-slot="dialog-trigger" {...props} />
+}
+
+function DialogPortal({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+  return <DialogPrimitive.Portal data-slot="dialog-portal" {...props} />
+}
+
+function DialogClose({
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Close>) {
+  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />
+}
+
+function DialogOverlay({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
+  return (
+    <DialogPrimitive.Overlay
+      data-slot="dialog-overlay"
+      className={cn(
+        "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 fixed inset-0 z-50 bg-black/50",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function DialogContent({
+  className,
+  children,
+  showCloseButton = true,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+  showCloseButton?: boolean
+}) {
+  return (
+    <DialogPortal data-slot="dialog-portal">
+      <DialogOverlay />
+      <DialogPrimitive.Content
+        data-slot="dialog-content"
+        className={cn(
+          "bg-background data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border p-6 shadow-lg duration-200 outline-none sm:max-w-lg",
+          className
+        )}
+        {...props}
+      >
+        {children}
+        {showCloseButton && (
+          <DialogPrimitive.Close
+            data-slot="dialog-close"
+            className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+          >
+            <XIcon />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
+        )}
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  )
+}
+
+function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="dialog-header"
+      className={cn("flex flex-col gap-2 text-center sm:text-left", className)}
+      {...props}
+    />
+  )
+}
+
+function DialogFooter({
+  className,
+  showCloseButton = false,
+  children,
+  ...props
+}: React.ComponentProps<"div"> & {
+  showCloseButton?: boolean
+}) {
+  return (
+    <div
+      data-slot="dialog-footer"
+      className={cn(
+        "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      {showCloseButton && (
+        <DialogPrimitive.Close asChild>
+          <Button variant="outline">Close</Button>
+        </DialogPrimitive.Close>
+      )}
+    </div>
+  )
+}
+
+function DialogTitle({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Title>) {
+  return (
+    <DialogPrimitive.Title
+      data-slot="dialog-title"
+      className={cn("text-lg leading-none font-semibold", className)}
+      {...props}
+    />
+  )
+}
+
+function DialogDescription({
+  className,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Description>) {
+  return (
+    <DialogPrimitive.Description
+      data-slot="dialog-description"
+      className={cn("text-muted-foreground text-sm", className)}
+      {...props}
+    />
+  )
+}
+
+export {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+  DialogTrigger,
+}
+</file>
+
+<file path="src/components/ui/dropdown-menu.tsx">
+"use client"
+
+import * as React from "react"
+import { CheckIcon, ChevronRightIcon, CircleIcon } from "lucide-react"
+import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+
+function DropdownMenu({
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
+  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />
+}
+
+function DropdownMenuPortal({
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Portal>) {
+  return (
+    <DropdownMenuPrimitive.Portal data-slot="dropdown-menu-portal" {...props} />
+  )
+}
+
+function DropdownMenuTrigger({
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Trigger>) {
+  return (
+    <DropdownMenuPrimitive.Trigger
+      data-slot="dropdown-menu-trigger"
+      {...props}
+    />
+  )
+}
+
+function DropdownMenuContent({
+  className,
+  sideOffset = 4,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+  return (
+    <DropdownMenuPrimitive.Portal>
+      <DropdownMenuPrimitive.Content
+        data-slot="dropdown-menu-content"
+        sideOffset={sideOffset}
+        className={cn(
+          "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-md border p-1 shadow-md",
+          className
+        )}
+        {...props}
+      />
+    </DropdownMenuPrimitive.Portal>
+  )
+}
+
+function DropdownMenuGroup({
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Group>) {
+  return (
+    <DropdownMenuPrimitive.Group data-slot="dropdown-menu-group" {...props} />
+  )
+}
+
+function DropdownMenuItem({
+  className,
+  inset,
+  variant = "default",
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Item> & {
+  inset?: boolean
+  variant?: "default" | "destructive"
+}) {
+  return (
+    <DropdownMenuPrimitive.Item
+      data-slot="dropdown-menu-item"
+      data-inset={inset}
+      data-variant={variant}
+      className={cn(
+        "focus:bg-accent focus:text-accent-foreground data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10 dark:data-[variant=destructive]:focus:bg-destructive/20 data-[variant=destructive]:focus:text-destructive data-[variant=destructive]:*:[svg]:!text-destructive [&_svg:not([class*='text-'])]:text-muted-foreground relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[inset]:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function DropdownMenuCheckboxItem({
+  className,
+  children,
+  checked,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>) {
+  return (
+    <DropdownMenuPrimitive.CheckboxItem
+      data-slot="dropdown-menu-checkbox-item"
+      className={cn(
+        "focus:bg-accent focus:text-accent-foreground relative flex cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        className
+      )}
+      checked={checked}
+      {...props}
+    >
+      <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">
+        <DropdownMenuPrimitive.ItemIndicator>
+          <CheckIcon className="size-4" />
+        </DropdownMenuPrimitive.ItemIndicator>
+      </span>
+      {children}
+    </DropdownMenuPrimitive.CheckboxItem>
+  )
+}
+
+function DropdownMenuRadioGroup({
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.RadioGroup>) {
+  return (
+    <DropdownMenuPrimitive.RadioGroup
+      data-slot="dropdown-menu-radio-group"
+      {...props}
+    />
+  )
+}
+
+function DropdownMenuRadioItem({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.RadioItem>) {
+  return (
+    <DropdownMenuPrimitive.RadioItem
+      data-slot="dropdown-menu-radio-item"
+      className={cn(
+        "focus:bg-accent focus:text-accent-foreground relative flex cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-sm outline-hidden select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        className
+      )}
+      {...props}
+    >
+      <span className="pointer-events-none absolute left-2 flex size-3.5 items-center justify-center">
+        <DropdownMenuPrimitive.ItemIndicator>
+          <CircleIcon className="size-2 fill-current" />
+        </DropdownMenuPrimitive.ItemIndicator>
+      </span>
+      {children}
+    </DropdownMenuPrimitive.RadioItem>
+  )
+}
+
+function DropdownMenuLabel({
+  className,
+  inset,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Label> & {
+  inset?: boolean
+}) {
+  return (
+    <DropdownMenuPrimitive.Label
+      data-slot="dropdown-menu-label"
+      data-inset={inset}
+      className={cn(
+        "px-2 py-1.5 text-sm font-medium data-[inset]:pl-8",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function DropdownMenuSeparator({
+  className,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Separator>) {
+  return (
+    <DropdownMenuPrimitive.Separator
+      data-slot="dropdown-menu-separator"
+      className={cn("bg-border -mx-1 my-1 h-px", className)}
+      {...props}
+    />
+  )
+}
+
+function DropdownMenuShortcut({
+  className,
+  ...props
+}: React.ComponentProps<"span">) {
+  return (
+    <span
+      data-slot="dropdown-menu-shortcut"
+      className={cn(
+        "text-muted-foreground ml-auto text-xs tracking-widest",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function DropdownMenuSub({
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Sub>) {
+  return <DropdownMenuPrimitive.Sub data-slot="dropdown-menu-sub" {...props} />
+}
+
+function DropdownMenuSubTrigger({
+  className,
+  inset,
+  children,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.SubTrigger> & {
+  inset?: boolean
+}) {
+  return (
+    <DropdownMenuPrimitive.SubTrigger
+      data-slot="dropdown-menu-sub-trigger"
+      data-inset={inset}
+      className={cn(
+        "focus:bg-accent focus:text-accent-foreground data-[state=open]:bg-accent data-[state=open]:text-accent-foreground [&_svg:not([class*='text-'])]:text-muted-foreground flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-hidden select-none data-[inset]:pl-8 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        className
+      )}
+      {...props}
+    >
+      {children}
+      <ChevronRightIcon className="ml-auto size-4" />
+    </DropdownMenuPrimitive.SubTrigger>
+  )
+}
+
+function DropdownMenuSubContent({
+  className,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.SubContent>) {
+  return (
+    <DropdownMenuPrimitive.SubContent
+      data-slot="dropdown-menu-sub-content"
+      className={cn(
+        "bg-popover text-popover-foreground data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-hidden rounded-md border p-1 shadow-lg",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export {
+  DropdownMenu,
+  DropdownMenuPortal,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+}
+</file>
+
+<file path="src/components/ui/input.tsx">
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+  return (
+    <input
+      type={type}
+      data-slot="input"
+      className={cn(
+        "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+        "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+export { Input }
+</file>
+
+<file path="src/components/ui/sonner.tsx">
+"use client"
+
+import {
+  CircleCheckIcon,
+  InfoIcon,
+  Loader2Icon,
+  OctagonXIcon,
+  TriangleAlertIcon,
+} from "lucide-react"
+import { useTheme } from "next-themes"
+import { Toaster as Sonner, type ToasterProps } from "sonner"
+
+const Toaster = ({ ...props }: ToasterProps) => {
+  const { theme = "system" } = useTheme()
+
+  return (
+    <Sonner
+      theme={theme as ToasterProps["theme"]}
+      className="toaster group"
+      icons={{
+        success: <CircleCheckIcon className="size-4" />,
+        info: <InfoIcon className="size-4" />,
+        warning: <TriangleAlertIcon className="size-4" />,
+        error: <OctagonXIcon className="size-4" />,
+        loading: <Loader2Icon className="size-4 animate-spin" />,
+      }}
+      style={
+        {
+          "--normal-bg": "var(--popover)",
+          "--normal-text": "var(--popover-foreground)",
+          "--normal-border": "var(--border)",
+          "--border-radius": "var(--radius)",
+        } as React.CSSProperties
+      }
+      {...props}
+    />
+  )
+}
+
+export { Toaster }
+</file>
+
+<file path="src/components/ui/tabs.tsx">
+"use client"
+
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+import { Tabs as TabsPrimitive } from "radix-ui"
+
+import { cn } from "@/lib/utils"
+
+function Tabs({
+  className,
+  orientation = "horizontal",
+  ...props
+}: React.ComponentProps<typeof TabsPrimitive.Root>) {
+  return (
+    <TabsPrimitive.Root
+      data-slot="tabs"
+      data-orientation={orientation}
+      orientation={orientation}
+      className={cn(
+        "group/tabs flex gap-2 data-[orientation=horizontal]:flex-col",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+const tabsListVariants = cva(
+  "rounded-lg p-[3px] group-data-[orientation=horizontal]/tabs:h-9 data-[variant=line]:rounded-none group/tabs-list text-muted-foreground inline-flex w-fit items-center justify-center group-data-[orientation=vertical]/tabs:h-fit group-data-[orientation=vertical]/tabs:flex-col",
+  {
+    variants: {
+      variant: {
+        default: "bg-muted",
+        line: "gap-1 bg-transparent",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+function TabsList({
+  className,
+  variant = "default",
+  ...props
+}: React.ComponentProps<typeof TabsPrimitive.List> &
+  VariantProps<typeof tabsListVariants>) {
+  return (
+    <TabsPrimitive.List
+      data-slot="tabs-list"
+      data-variant={variant}
+      className={cn(tabsListVariants({ variant }), className)}
+      {...props}
+    />
+  )
+}
+
+function TabsTrigger({
+  className,
+  ...props
+}: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
+  return (
+    <TabsPrimitive.Trigger
+      data-slot="tabs-trigger"
+      className={cn(
+        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:outline-ring text-foreground/60 hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground relative inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap transition-all group-data-[orientation=vertical]/tabs:w-full group-data-[orientation=vertical]/tabs:justify-start focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 group-data-[variant=default]/tabs-list:data-[state=active]:shadow-sm group-data-[variant=line]/tabs-list:data-[state=active]:shadow-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "group-data-[variant=line]/tabs-list:bg-transparent group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent dark:group-data-[variant=line]/tabs-list:data-[state=active]:border-transparent dark:group-data-[variant=line]/tabs-list:data-[state=active]:bg-transparent",
+        "data-[state=active]:bg-background dark:data-[state=active]:text-foreground dark:data-[state=active]:border-input dark:data-[state=active]:bg-input/30 data-[state=active]:text-foreground",
+        "after:bg-foreground after:absolute after:opacity-0 after:transition-opacity group-data-[orientation=horizontal]/tabs:after:inset-x-0 group-data-[orientation=horizontal]/tabs:after:bottom-[-5px] group-data-[orientation=horizontal]/tabs:after:h-0.5 group-data-[orientation=vertical]/tabs:after:inset-y-0 group-data-[orientation=vertical]/tabs:after:-right-1 group-data-[orientation=vertical]/tabs:after:w-0.5 group-data-[variant=line]/tabs-list:data-[state=active]:after:opacity-100",
+        className
+      )}
+      {...props}
+    />
+  )
+}
+
+function TabsContent({
+  className,
+  ...props
+}: React.ComponentProps<typeof TabsPrimitive.Content>) {
+  return (
+    <TabsPrimitive.Content
+      data-slot="tabs-content"
+      className={cn("flex-1 outline-none", className)}
+      {...props}
+    />
+  )
+}
+
+export { Tabs, TabsList, TabsTrigger, TabsContent, tabsListVariants }
+</file>
+
+<file path="src/hooks/use-media-query.ts">
+"use client";
+
+import { useEffect, useState } from "react";
+
+export function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    setMatches(media.matches);
+
+    const listener = (event: MediaQueryListEvent) => setMatches(event.matches);
+    media.addEventListener("change", listener);
+    return () => media.removeEventListener("change", listener);
+  }, [query]);
+
+  return matches;
+}
+
+export function useIsMobile() {
+  return useMediaQuery("(max-width: 768px)");
+}
+</file>
+
+<file path="src/lib/api-client.ts">
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
+
+interface RequestOptions extends RequestInit {
+  params?: Record<string, string | number>;
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  error: { code: string; message: string } | null;
+}
+
+class ApiClient {
+  private baseURL: string;
+
+  constructor(baseURL: string) {
+    this.baseURL = baseURL;
+  }
+
+  private async request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+    const { params, headers, ...rest } = options;
+    let url = `${this.baseURL}${endpoint}`;
+    
+    if (params) {
+      const searchParams = new URLSearchParams(
+        Object.entries(params).map(([key, value]) => [key, String(value)])
+      );
+      url += `?${searchParams.toString()}`;
+    }
+
+    const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+    const response = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+      ...rest,
+    });
+
+    const json: ApiResponse<T> = await response.json().catch(() => ({}));
+
+    if (!response.ok || !json.success) {
+      throw new ApiError(response.status, json.error?.message ?? "请求失败", json.error?.code);
+    }
+
+    return json.data;
+  }
+
+  get<T>(endpoint: string, options?: RequestOptions) {
+    return this.request<T>(endpoint, { ...options, method: "GET" });
+  }
+
+  post<T>(endpoint: string, data?: unknown, options?: RequestOptions) {
+    return this.request<T>(endpoint, { ...options, method: "POST", body: data ? JSON.stringify(data) : undefined });
+  }
+
+  patch<T>(endpoint: string, data?: unknown, options?: RequestOptions) {
+    return this.request<T>(endpoint, { ...options, method: "PATCH", body: data ? JSON.stringify(data) : undefined });
+  }
+
+  delete<T>(endpoint: string, options?: RequestOptions) {
+    return this.request<T>(endpoint, { ...options, method: "DELETE" });
+  }
+}
+
+export class ApiError extends Error {
+  constructor(public status: number, message: string, public code?: string) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export const apiClient = new ApiClient(API_BASE_URL);
+</file>
+
+<file path="src/lib/socket.ts">
+import { io, Socket } from "socket.io-client";
+
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL ?? "http://localhost:5000";
+
+let socket: Socket | null = null;
+
+export function getSocket(): Socket {
+  if (!socket) {
+    socket = io(SOCKET_URL, {
+      autoConnect: false,
+      transports: ["websocket", "polling"],
+    });
+  }
+  return socket;
+}
+
+export function connectSocket(token?: string) {
+  const s = getSocket();
+  if (token) {
+    s.auth = { token };
+  }
+  s.connect();
+  return s;
+}
+
+export function disconnectSocket() {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
+}
+</file>
+
+<file path="src/lib/utils.ts">
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+</file>
+
+<file path="src/stores/auth-store.ts">
+import { create } from "zustand";
+
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  avatar?: string;
+}
+
+interface AuthState {
+  user: User | null;
+  token: string | null;
+  isAuthenticated: boolean;
+  setAuth: (user: User, token: string) => void;
+  logout: () => void;
+}
+
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  token: typeof window !== "undefined" ? localStorage.getItem("token") : null,
+  isAuthenticated: false,
+
+  setAuth: (user, token) => {
+    localStorage.setItem("token", token);
+    set({ user, token, isAuthenticated: true });
+  },
+
+  logout: () => {
+    localStorage.removeItem("token");
+    set({ user: null, token: null, isAuthenticated: false });
+  },
+}));
+</file>
+
+<file path="tsconfig.json">
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules"]
+}
+</file>
+
+<file path="next.config.ts">
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  async rewrites() {
+    return [
+      {
+        source: "/api/:path*",
+
+        destination: "http://localhost:5001/:path*", 
+
+      },
+    ];
+  },
+};
+
+export default nextConfig;
+</file>
+
+<file path="package.json">
+{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "generate-api": "openapi --input http://localhost:5000/openapi.json --output src/api --client fetch"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.2.2",
+    "@tanstack/react-query": "^5.90.21",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.575.0",
+    "next": "16.1.6",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.4.3",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-hook-form": "^7.71.2",
+    "react-leaflet": "^5.0.0",
+    "socket.io-client": "^4.8.3",
+    "sonner": "^2.0.7",
+    "tailwind-merge": "^3.5.0",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/leaflet": "^1.9.21",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "openapi-typescript-codegen": "^0.30.0",
+    "shadcn": "^3.8.5",
+    "tailwindcss": "^4",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "^5"
+  }
+}
+</file>
+
+<file path="src/app/(auth)/register/page.tsx">
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { apiClient } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth-store";
+import { toast } from "sonner";
+
+export default function RegisterPage() {
+  const router = useRouter();
+  const setAuth = useAuthStore((s) => s.setAuth);
+  
+  const [step, setStep] = useState<1 | 2>(1);
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({ sustech_email: "", username: "", password: "", code: "" });
+
+  async function handleSendCode(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.sustech_email || !form.username || !form.password) {
+      toast.error("请填写完整信息");
+      return;
+    }
+    setLoading(true);
+    try {
+      await apiClient.post("/auth/register", {
+        sustech_email: form.sustech_email,
+        username: form.username,
+        password: form.password,
+      });
+      toast.success("验证码已发送至邮箱（若未配置 SMTP 请查看后端控制台）");
+      setStep(2);
+    } catch (error: any) {
+      toast.error(error.message || "请求失败");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleVerify(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.code) return toast.error("请输入验证码");
+    
+    setLoading(true);
+    try {
+      const res = await apiClient.post<{ token: string; user: any }>("/auth/register/verify", {
+        sustech_email: form.sustech_email,
+        code: form.code,
+      });
+      setAuth(res.user, res.token);
+      toast.success("注册成功！");
+      router.push("/marketplace");
+    } catch (error: any) {
+      toast.error(error.message || "验证失败");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-2xl font-bold shadow-lg mb-4">市</div>
+          <h1 className="text-2xl font-bold">SUSTech Market</h1>
+        </div>
+
+        <div className="bg-card border rounded-3xl p-6 shadow-sm space-y-5">
+          <h2 className="font-bold text-lg">{step === 1 ? "创建账号" : "输入验证码"}</h2>
+          
+          {step === 1 ? (
+            <form onSubmit={handleSendCode} className="space-y-4">
+              <input
+                type="text" placeholder="用户名" value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+                className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none"
+              />
+              <input
+                type="email" placeholder="南科大邮箱" value={form.sustech_email}
+                onChange={(e) => setForm({ ...form, sustech_email: e.target.value })}
+                className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none"
+              />
+              <input
+                type="password" placeholder="密码 (至少8位, 包含字母和数字)" value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none"
+              />
+              <button type="submit" disabled={loading} className="w-full rounded-xl bg-primary py-3 text-sm text-primary-foreground hover:opacity-90">
+                {loading ? "发送中..." : "获取验证码"}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerify} className="space-y-4">
+              <p className="text-xs text-muted-foreground">已向 {form.sustech_email} 发送验证码</p>
+              <input
+                type="text" placeholder="6位验证码" value={form.code}
+                onChange={(e) => setForm({ ...form, code: e.target.value })}
+                className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none text-center tracking-widest font-mono text-lg"
+              />
+              <button type="submit" disabled={loading} className="w-full rounded-xl bg-primary py-3 text-sm text-primary-foreground hover:opacity-90">
+                {loading ? "验证中..." : "完成注册"}
+              </button>
+              <button type="button" onClick={() => setStep(1)} className="w-full text-xs text-muted-foreground hover:underline">返回上一步</button>
+            </form>
+          )}
+          
+          <p className="text-center text-sm text-muted-foreground">
+            已有账号？ <Link href="/login" className="font-semibold text-primary hover:underline">立即登录</Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/chat/page.tsx">
+"use client";
+
+import { useState, useRef, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth-store";
+import { cn } from "@/lib/utils";
+
+export default function ChatPage() {
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [inputValue, setInputValue] = useState("");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+  const currentUser = useAuthStore(s => s.user);
+
+  // 获取会话列表
+  const { data: conversations = [] } = useQuery({
+    queryKey: ["conversations"],
+    queryFn: () => apiClient.get<any[]>("/conversations"),
+    refetchInterval: 5000, // 每 5 秒轮询一次刷新列表
+  });
+
+  // 获取选中会话的消息
+  const { data: chatData } = useQuery({
+    queryKey: ["messages", selectedId],
+    queryFn: () => apiClient.get<any>(`/conversations/${selectedId}/messages`),
+    enabled: !!selectedId,
+    refetchInterval: 3000, // 轮询拉取最新消息
+  });
+
+  // 发送消息
+  const sendMessageMutation = useMutation({
+    mutationFn: (content: string) => 
+      apiClient.post(`/conversations/${selectedId}/messages`, { content }),
+    onSuccess: () => {
+      setInputValue("");
+      queryClient.invalidateQueries({ queryKey: ["messages", selectedId] });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    }
+  });
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatData?.messages?.length]);
+
+  return (
+    <div className="flex h-full overflow-hidden">
+      {/* 左侧会话列表 */}
+      <div className="flex flex-col border-r bg-background w-full md:w-80 shrink-0">
+        <div className="px-4 py-3 border-b"><h1 className="font-bold text-lg">消息</h1></div>
+        <div className="overflow-y-auto flex-1">
+          {conversations.map((conv) => (
+            <button
+              key={conv.id}
+              onClick={() => setSelectedId(conv.id)}
+              className={cn("w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/60 border-b", selectedId === conv.id && "bg-muted")}
+            >
+              <div className="h-10 w-10 shrink-0 rounded-full bg-primary/20 flex items-center justify-center font-bold">
+                {conv.seller_id === currentUser?.id ? "买" : "卖"}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground truncate">商品 ID: {conv.item_id}</p>
+                <p className="text-sm truncate mt-0.5">{conv.last_message || "暂无消息"}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 右侧聊天区域 */}
+      <div className="flex flex-col flex-1 bg-background">
+        {selectedId && chatData ? (
+          <>
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+              {chatData.messages.map((msg: any) => {
+                const isMe = msg.sender_id === currentUser?.id;
+                return (
+                  <div key={msg.id} className={cn("flex", isMe ? "justify-end" : "justify-start")}>
+                    <div className={cn("rounded-2xl px-4 py-2.5 text-sm", isMe ? "bg-primary text-primary-foreground" : "bg-muted")}>
+                      {msg.content}
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={messagesEndRef} />
+            </div>
+            <div className="border-t px-4 py-3 flex gap-2">
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendMessageMutation.mutate(inputValue)}
+                className="flex-1 rounded-xl bg-muted px-4 outline-none"
+                placeholder="输入消息..."
+              />
+              <button 
+                onClick={() => sendMessageMutation.mutate(inputValue)}
+                disabled={!inputValue.trim() || sendMessageMutation.isPending}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-xl"
+              >
+                发送
+              </button>
+            </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-muted-foreground">选择一个对话</div>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/globals.css">
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+</file>
+
+<file path="src/app/layout.tsx">
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+import { QueryProvider } from "@/components/providers/query-provider";
+import { Toaster } from "@/components/ui/sonner";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+export const metadata: Metadata = {
+  title: "SUSTech Market",
+  description: "SUSTech 校园社交交易平台",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="zh-CN">
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        <QueryProvider>
+          {children}
+          <Toaster />
+        </QueryProvider>
+      </body>
+    </html>
+  );
+}
+</file>
+
+<file path="src/app/page.tsx">
+import { redirect } from "next/navigation";
+
+export default function Home() {
+  redirect("/marketplace");
+}
+</file>
+
+<file path=".gitignore">
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# OpenAPI generated client
+/src/api/
+
+CLAUDE.md
+</file>
+
+<file path="src/app/(auth)/login/page.tsx">
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { apiClient } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth-store";
+import { toast } from "sonner"; // 引入 sonner 提示组件
+
+export default function LoginPage() {
+  const router = useRouter();
+  const setAuth = useAuthStore((s) => s.setAuth);
+  const [form, setForm] = useState({ sustech_email: "", password: "" });
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.sustech_email || !form.password) {
+      toast.error("请填写邮箱和密码");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const res = await apiClient.post<{ token: string; user: any }>("/auth/login", form);
+      setAuth(res.user, res.token);
+      toast.success("登录成功");
+      router.push("/marketplace");
+    } catch (error: any) {
+      toast.error(error.message || "登录失败");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-muted/30 to-background p-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-2xl font-bold shadow-lg mb-4">市</div>
+          <h1 className="text-2xl font-bold">SUSTech Market</h1>
+        </div>
+        <div className="bg-card border rounded-3xl p-6 shadow-sm space-y-5">
+          <div className="space-y-1">
+            <h2 className="font-bold text-lg">登录账号</h2>
+          </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">南科大邮箱</label>
+              <input
+                type="email"
+                placeholder="your@mail.sustech.edu.cn"
+                value={form.sustech_email}
+                onChange={(e) => setForm({ ...form, sustech_email: e.target.value })}
+                className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">密码</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                className="w-full rounded-xl border bg-background px-4 py-2.5 text-sm outline-none transition-all focus:ring-2 focus:ring-primary/30"
+              />
+            </div>
+            <button type="submit" disabled={loading} className="w-full rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60">
+              {loading ? "登录中..." : "登录"}
+            </button>
+          </form>
+          <p className="text-center text-sm text-muted-foreground">
+            还没有账号？ <Link href="/register" className="font-semibold text-primary hover:underline">立即注册</Link>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/map/page.tsx">
+"use client";
+
+import { useState } from "react";
+
+// 定义地图点位数据
+const tradingSpots = [
+  // --- 原有物品交易点 ---
+  {
+    id: 1,
+    name: "荔园宿舍楼下",
+    shortName: "荔园",
+    description: "最热门的交易地点，宿舍区人流量大，适合书籍、生活用品等小物件",
+    activeItems: 28,
+    tags: ["书籍", "生活用品", "服装"],
+    emoji: "🏠",
+    color: "bg-blue-50 border-blue-200",
+    tagColor: "bg-blue-100 text-blue-700",
+    x: 30, y: 60, 
+  },
+  {
+    id: 2,
+    name: "图书馆正门",
+    shortName: "图书馆",
+    description: "安静安全的交易场所，适合书籍、学习用品，学术氛围浓厚",
+    activeItems: 15,
+    tags: ["书籍教材", "文具"],
+    emoji: "📚",
+    color: "bg-violet-50 border-violet-200",
+    tagColor: "bg-violet-100 text-violet-700",
+    x: 50, y: 40,
+  },
+  {
+    id: 3,
+    name: "工学院广场",
+    shortName: "工学院",
+    description: "电子产品热门交易地，光线好便于验货，附近有工科楼群",
+    activeItems: 22,
+    tags: ["电子产品", "数码"],
+    emoji: "💻",
+    color: "bg-emerald-50 border-emerald-200",
+    tagColor: "bg-emerald-100 text-emerald-700",
+    x: 70, y: 35,
+  },
+  {
+    id: 4,
+    name: "南园宿舍区",
+    shortName: "南园",
+    description: "南区主要生活区，适合大型物品如体育器材、家具等",
+    activeItems: 19,
+    tags: ["运动器材", "生活用品"],
+    emoji: "🏃",
+    color: "bg-amber-50 border-amber-200",
+    tagColor: "bg-amber-100 text-amber-700",
+    x: 25, y: 75,
+  },
+  {
+    id: 5,
+    name: "北园宿舍区",
+    shortName: "北园",
+    description: "北区宿舍楼群，交通便利，附近有小卖部可供等待",
+    activeItems: 12,
+    tags: ["服装", "生活用品"],
+    emoji: "🧩",
+    color: "bg-rose-50 border-rose-200",
+    tagColor: "bg-rose-100 text-rose-700",
+    x: 65, y: 70,
+  },
+  {
+    id: 6,
+    name: "体育馆门口",
+    shortName: "体育馆",
+    description: "运动器材、户外装备的专属交易点，就近验货试用",
+    activeItems: 8,
+    tags: ["运动器材", "服装"],
+    emoji: "🏋️",
+    color: "bg-orange-50 border-orange-200",
+    tagColor: "bg-orange-100 text-orange-700",
+    x: 45, y: 80,
+  },
+  
+  // --- 新增：技能交换与游戏陪玩点 ---
+  {
+    id: 7,
+    name: "学生活动中心",
+    shortName: "社团中心",
+    description: "充满活力的社交中心，适合寻找游戏开黑队友、摄影约拍或乐器切磋。",
+    activeItems: 34,
+    tags: ["游戏陪玩", "摄影约拍", "才艺教学"],
+    emoji: "🎮", // 使用手柄 Emoji 代表游戏/娱乐
+    color: "bg-indigo-50 border-indigo-200",
+    tagColor: "bg-indigo-100 text-indigo-700",
+    x: 80, y: 55, // 设定在地图右侧
+  },
+  {
+    id: 8,
+    name: "研楼公共空间",
+    shortName: "研楼",
+    description: "安静且有桌椅的公共区域，非常适合一对一学业辅导、编程教学或语言交换。",
+    activeItems: 11,
+    tags: ["学业辅导", "技能交换", "编程"],
+    emoji: "💡", // 使用灯泡代表知识/技能
+    color: "bg-cyan-50 border-cyan-200",
+    tagColor: "bg-cyan-100 text-cyan-700",
+    x: 15, y: 45, // 设定在地图左侧
+  },
+];
+
+export default function MapPage() {
+  const [selectedSpot, setSelectedSpot] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const selected = tradingSpots.find((s) => s.id === selectedSpot);
+  
+  // 过滤逻辑：支持搜索名称或标签
+  const filtered = tradingSpots.filter(
+    (s) =>
+      !searchQuery ||
+      s.name.includes(searchQuery) ||
+      s.tags.some((t) => t.includes(searchQuery))
+  );
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-3 border-b bg-background space-y-2">
+        <h1 className="font-bold text-lg">校园交易地图</h1>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base leading-none pointer-events-none">🔍</span>
+          <input
+            type="text"
+            placeholder="搜索地点、游戏陪玩、技能..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-xl bg-muted pl-9 pr-4 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/40 transition-all"
+          />
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto">
+        {/* Stylized campus map */}
+        <div className="relative mx-4 mt-4 rounded-2xl bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 border border-green-200 overflow-hidden" style={{ height: 260 }}>
+          {/* Map decorative elements */}
+          <div className="absolute inset-0">
+            {/* Roads */}
+            <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white/80" />
+            <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-white/80" />
+            <div className="absolute left-1/4 top-1/4 w-1/2 h-1/2 rounded-xl border border-white/60 bg-white/20" />
+            {/* Lake / Feature */}
+            <div className="absolute right-[10%] bottom-[10%] w-16 h-12 rounded-[40%] bg-blue-100/50 border border-blue-200/30 rotate-12" />
+          </div>
+
+          {/* Campus label */}
+          <div className="absolute top-3 left-3 bg-white/80 backdrop-blur-sm rounded-lg px-2 py-1 text-xs font-bold text-green-800 border border-green-200 shadow-sm">
+            南方科技大学
+          </div>
+
+          {/* Spot markers */}
+          {tradingSpots.map((spot) => (
+            <button
+              key={spot.id}
+              onClick={() => setSelectedSpot(spot.id === selectedSpot ? null : spot.id)}
+              className="absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-200 z-10"
+              style={{ left: `${spot.x}%`, top: `${spot.y}%` }}
+            >
+              <div className={`flex flex-col items-center gap-0.5 group`}>
+                <div className={`rounded-full text-base leading-none p-2 shadow-md transition-all duration-200 border-2 ${
+                  selectedSpot === spot.id
+                    ? "scale-125 bg-primary text-primary-foreground border-primary z-20"
+                    : "bg-white border-white hover:scale-110"
+                }`}>
+                  {spot.emoji}
+                </div>
+                <span className={`text-[9px] font-bold backdrop-blur-sm px-1 rounded shadow-sm whitespace-nowrap transition-colors ${
+                    selectedSpot === spot.id ? "bg-primary text-white" : "bg-white/90 text-gray-700"
+                }`}>
+                  {spot.shortName}
+                </span>
+              </div>
+            </button>
+          ))}
+
+          {/* Legend */}
+          <div className="absolute bottom-3 right-3 bg-white/80 backdrop-blur-sm rounded-lg px-2 py-1.5 text-[10px] text-gray-600 border border-green-200 shadow-sm">
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-primary" />
+              <span>已选地点</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Selected spot detail */}
+        {selected && (
+          <div className={`mx-4 mt-3 rounded-2xl border p-4 ${selected.color} shadow-sm animate-in fade-in slide-in-from-top-2 duration-200`}>
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl bg-white/50 p-1.5 rounded-full">{selected.emoji}</span>
+                <div>
+                  <h3 className="font-bold text-gray-900">{selected.name}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5 font-medium">{selected.activeItems} 个活跃需求</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedSpot(null)} className="text-muted-foreground hover:text-foreground text-lg px-2">×</button>
+            </div>
+            <p className="text-sm mt-2 text-gray-700 leading-relaxed">{selected.description}</p>
+            <div className="flex gap-1.5 mt-3 flex-wrap">
+              {selected.tags.map((tag) => (
+                <span key={tag} className={`rounded-full px-2 py-0.5 text-xs font-semibold ${selected.tagColor}`}>
+                  #{tag}
+                </span>
+              ))}
+            </div>
+            <button className="w-full mt-3 py-2 bg-white/60 hover:bg-white/80 text-sm font-semibold rounded-xl border border-black/5 transition-colors">
+              查看此处所有发布
+            </button>
+          </div>
+        )}
+
+        {/* Spots list */}
+        <div className="px-4 pt-4 pb-20">
+          <h2 className="font-semibold text-sm text-muted-foreground mb-3 uppercase tracking-wide flex justify-between items-center">
+            <span>地点列表 · {filtered.length}</span>
+          </h2>
+          <div className="space-y-2">
+            {filtered.map((spot) => (
+              <button
+                key={spot.id}
+                onClick={() => setSelectedSpot(spot.id === selectedSpot ? null : spot.id)}
+                className={`w-full text-left rounded-2xl border p-3.5 transition-all duration-200 ${
+                  selectedSpot === spot.id ? `${spot.color} shadow-md ring-1 ring-primary/20` : "bg-card hover:bg-muted/50 border-border/60"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl shrink-0 bg-muted/20 p-1 rounded-lg">{spot.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-sm">{spot.name}</span>
+                      <span className="text-xs text-muted-foreground shrink-0 bg-muted px-1.5 py-0.5 rounded-full">
+                        {spot.activeItems}
+                      </span>
+                    </div>
+                    <div className="flex gap-1 mt-1.5 flex-wrap">
+                      {spot.tags.slice(0, 3).map((tag) => (
+                        <span key={tag} className={`rounded-full px-1.5 py-0.5 text-[10px] font-medium ${spot.tagColor}`}>
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {filtered.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
+              <span className="text-5xl opacity-50">🗺️</span>
+              <p className="text-sm">没有找到匹配的地点</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/marketplace/[id]/page.tsx">
+"use client";
+
+import { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth-store";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Package, Zap, MapPin, Clock, Truck, ShieldCheck, X, Edit, Trash2 } from "lucide-react";
+
+export default function ItemDetailPage() {
+  const { id } = useParams();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const currentUser = useAuthStore((s) => s.user);
+
+  const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
+  const [orderForm, setOrderForm] = useState({ price: "", note: "" });
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ price: "", description: "", location_text: "" });
+
+  const { data: item, isLoading: isItemLoading } = useQuery({
+    queryKey: ["item", id],
+    queryFn: () => apiClient.get<any>(`/items/${id}`),
+  });
+
+  const { data: seller, isLoading: isSellerLoading } = useQuery({
+    queryKey: ["user", item?.owner_id],
+    queryFn: () => apiClient.get<any>(`/users/${item?.owner_id}`),
+    enabled: !!item?.owner_id,
+  });
+
+  const chatMutation = useMutation({
+    mutationFn: () => apiClient.post<{ id: number }>("/conversations", {
+      item_id: item?.id,
+      seller_id: item?.owner_id,
+    }),
+    onSuccess: (data) => {
+      toast.success("已创建聊天会话");
+      router.push(`/chat?conversationId=${data.id}`);
+    },
+    onError: (err: any) => toast.error(err.message || "无法发起聊天"),
+  });
+
+  const orderMutation = useMutation({
+    mutationFn: (payload: { item_id: number; price: number; note: string }) => 
+      apiClient.post<{ id: number }>("/orders", payload),
+    onSuccess: (data) => {
+      toast.success("下单成功！");
+      setIsOrderModalOpen(false);
+      router.push(`/orders/${data.id}`);
+    },
+    onError: (err: any) => toast.error(err.message || "下单失败"),
+  });
+
+  const updateItemMutation = useMutation({
+    mutationFn: (payload: any) => apiClient.patch(`/items/${item?.id}`, payload),
+    onSuccess: () => {
+      toast.success("商品信息已更新");
+      setIsEditModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["item", id] });
+    },
+    onError: (err: any) => toast.error(err.message || "更新失败"),
+  });
+
+  const deleteItemMutation = useMutation({
+    mutationFn: () => apiClient.delete(`/items/${item?.id}`),
+    onSuccess: () => {
+      toast.success("商品已删除");
+      router.replace("/marketplace");
+    },
+    onError: (err: any) => toast.error(err.message || "删除失败"),
+  });
+
+  const handleOpenOrderModal = () => {
+    setOrderForm({ price: item.price.toString(), note: "" });
+    setIsOrderModalOpen(true);
+  };
+
+  const submitOrder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orderForm.price || isNaN(Number(orderForm.price))) return toast.error("请输入有效价格");
+    orderMutation.mutate({
+      item_id: item.id,
+      price: Number(orderForm.price),
+      note: orderForm.note.trim()
+    });
+  };
+
+  const handleOpenEditModal = () => {
+    setEditForm({ 
+      price: item.price.toString(), 
+      description: item.description || "", 
+      location_text: item.location_text || "" 
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const submitEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateItemMutation.mutate({
+      price: Number(editForm.price),
+      description: editForm.description,
+      location_text: editForm.location_text
+    });
+  };
+
+  const handleDelete = () => {
+    if (confirm("确定要永久删除这个商品吗？该操作不可恢复。")) {
+      deleteItemMutation.mutate();
+    }
+  };
+
+  if (isItemLoading) return <div className="p-10 text-center">加载商品信息中...</div>;
+  if (!item) return <div className="p-10 text-center">商品不存在或已删除</div>;
+
+  const isSkill = item.type === 'skill';
+  const isOwner = currentUser?.id === item.owner_id;
+
+  return (
+    <div className="min-h-screen max-w-2xl mx-auto bg-background pb-24 relative">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-3 flex items-center gap-3">
+        <button onClick={() => router.back()} className="rounded-full p-1.5 hover:bg-muted text-lg leading-none">←</button>
+        <span className="font-semibold text-sm truncate flex-1">{isSkill ? "技能服务详情" : "闲置物品详情"}</span>
+      </div>
+
+      <div className="w-full aspect-square md:aspect-video bg-muted flex items-center justify-center relative">
+        {item.cover_images?.[0] ? (
+          <img src={item.cover_images[0]} alt={item.title} className="w-full h-full object-cover" />
+        ) : (
+          <div className="text-muted-foreground opacity-50 flex flex-col items-center"><Package size={48} /></div>
+        )}
+        {item.status !== 'active' && (
+          <div className="absolute inset-0 bg-background/60 backdrop-blur-sm flex items-center justify-center">
+             <span className="px-6 py-2 bg-black/80 text-white font-bold rounded-full text-lg tracking-widest rotate-[-15deg]">
+               已{item.status === 'sold' ? '售出' : '下架'}
+             </span>
+          </div>
+        )}
+      </div>
+
+      <div className="p-4 space-y-6">
+        <div className="space-y-3">
+          <h1 className="text-2xl font-bold leading-snug">{item.title}</h1>
+          <div className="flex items-end gap-2">
+            <span className="text-3xl font-bold text-primary">¥{item.price}</span>
+            <span className="text-sm text-muted-foreground mb-1">({item.price_mode === 'negotiable' ? '可小刀' : '一口价'})</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="bg-muted/50 rounded-xl p-3 border flex items-start gap-2">
+            <MapPin className="w-4 h-4 mt-0.5 text-muted-foreground" />
+            <div>
+              <p className="text-xs text-muted-foreground">交易地点</p>
+              <p className="font-medium">{item.location_text || "未填写"}</p>
+            </div>
+          </div>
+          <div className="bg-muted/50 rounded-xl p-3 border flex items-start gap-2">
+            <Clock className="w-4 h-4 mt-0.5 text-muted-foreground" />
+            <div>
+              <p className="text-xs text-muted-foreground">发布时间</p>
+              <p className="font-medium">{new Date(item.created_at).toLocaleDateString()}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <h2 className="font-semibold text-sm text-muted-foreground uppercase">详细描述</h2>
+          <div className="text-sm leading-relaxed bg-muted/30 rounded-xl p-4 border whitespace-pre-wrap">
+            {item.description || "卖家没有留下详细描述。"}
+          </div>
+        </div>
+
+        <div className="border rounded-2xl p-4 space-y-3 bg-card shadow-sm">
+          <h2 className="font-semibold text-sm text-muted-foreground uppercase">卖家信息</h2>
+          {isSellerLoading ? <div className="animate-pulse h-12 bg-muted rounded-xl" /> : seller && (
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary overflow-hidden">
+                  {seller.avatar_url ? <img src={seller.avatar_url} className="w-full h-full object-cover" /> : seller.username.charAt(0)}
+                </div>
+                <div>
+                  <p className="font-semibold">{seller.username}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">信誉分: {isSkill ? seller.reputation_skill : seller.reputation_trade}</p>
+                </div>
+              </div>
+              <Link href={`/profile/${seller.id}`}>
+                <Button size="sm" variant="outline" className="rounded-xl h-8">查看主页</Button>
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md border-t p-4 flex gap-3 max-w-2xl mx-auto z-40">
+        {isOwner ? (
+          <>
+            <Button variant="outline" className="flex-1 rounded-xl h-12 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={handleDelete} disabled={deleteItemMutation.isPending}>
+              <Trash2 className="w-4 h-4 mr-2" /> 删除商品
+            </Button>
+            <Button className="flex-1 rounded-xl h-12" onClick={handleOpenEditModal}>
+              <Edit className="w-4 h-4 mr-2" /> 修改信息
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button variant="outline" className="flex-1 rounded-xl h-12" onClick={() => chatMutation.mutate()} disabled={chatMutation.isPending || item.status !== 'active'}>
+              💬 聊一聊
+            </Button>
+            <Button className="flex-[2] rounded-xl font-bold h-12" onClick={handleOpenOrderModal} disabled={item.status !== 'active'}>
+              {item.status !== 'active' ? "商品不可售" : "立即下单"}
+            </Button>
+          </>
+        )}
+      </div>
+
+      {isOrderModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-background w-full max-w-md rounded-3xl p-6 shadow-xl animate-in slide-in-from-bottom-10 sm:zoom-in-95">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">确认下单信息</h2>
+              <button onClick={() => setIsOrderModalOpen(false)}><X size={20}/></button>
+            </div>
+            <form onSubmit={submitOrder} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">协商价格 (元)</label>
+                <input type="number" value={orderForm.price} onChange={e => setOrderForm({...orderForm, price: e.target.value})} className="w-full rounded-xl border bg-muted/50 px-4 py-3 outline-none focus:ring-2 focus:ring-primary/30" />
+                <p className="text-xs text-muted-foreground">如果已与卖家商议好价格，请在此修改。</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">给卖家的留言 (选填)</label>
+                <textarea value={orderForm.note} onChange={e => setOrderForm({...orderForm, note: e.target.value})} rows={3} placeholder="例如：明天中午荔园二食堂当面交易" className="w-full rounded-xl border bg-muted/50 px-4 py-3 outline-none focus:ring-2 focus:ring-primary/30 resize-none" />
+              </div>
+              <Button type="submit" className="w-full h-12 rounded-xl font-bold mt-2" disabled={orderMutation.isPending}>
+                {orderMutation.isPending ? "提交中..." : "确认生成订单"}
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-background w-full max-w-md rounded-3xl p-6 shadow-xl animate-in zoom-in-95">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">修改商品信息</h2>
+              <button onClick={() => setIsEditModalOpen(false)}><X size={20}/></button>
+            </div>
+            <form onSubmit={submitEdit} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">价格 (元)</label>
+                <input type="number" value={editForm.price} onChange={e => setEditForm({...editForm, price: e.target.value})} className="w-full rounded-xl border px-4 py-3 outline-none" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">交易地点</label>
+                <input type="text" value={editForm.location_text} onChange={e => setEditForm({...editForm, location_text: e.target.value})} className="w-full rounded-xl border px-4 py-3 outline-none" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">商品描述</label>
+                <textarea value={editForm.description} onChange={e => setEditForm({...editForm, description: e.target.value})} rows={4} className="w-full rounded-xl border px-4 py-3 outline-none resize-none" />
+              </div>
+              <Button type="submit" className="w-full h-12 rounded-xl font-bold" disabled={updateItemMutation.isPending}>
+                {updateItemMutation.isPending ? "保存中..." : "保存修改"}
+              </Button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/marketplace/page.tsx">
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { ShoppingBag, GraduationCap, Search, Plus, Package } from "lucide-react";
+
+interface Item {
+  id: number;
+  type: string;
+  title: string;
+  price: number;
+  condition?: string;
+  location_text?: string;
+  created_at: string;
+  cover_images: string[];
+}
+
+export default function MarketplacePage() {
+  const [activeTab, setActiveTab] = useState<'item' | 'skill'>('item');
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // 获取商品数据，将 isError 也解构出来用于错误状态判断
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["items", activeTab, searchQuery],
+    queryFn: () => apiClient.get<any>("/items", {
+      params: { type: activeTab, keyword: searchQuery }
+    }),
+  });
+
+  // 终极保底逻辑：判断 data 到底是什么格式，确保 items 永远是一个数组，防止 .map 崩溃
+  const items = Array.isArray(data) ? data : (data?.items || []);
+
+  return (
+    <div className="min-h-screen bg-background pb-20 relative">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-3 space-y-3">
+        <div className="flex p-1 bg-muted/50 rounded-xl">
+          <button onClick={() => setActiveTab('item')} className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg ${activeTab === 'item' ? 'bg-background shadow-sm text-blue-600' : 'text-muted-foreground'}`}>
+            <ShoppingBag size={16} /> <span>校园闲置</span>
+          </button>
+          <button onClick={() => setActiveTab('skill')} className={`flex-1 flex items-center justify-center gap-2 py-2 text-sm font-semibold rounded-lg ${activeTab === 'skill' ? 'bg-background shadow-sm text-purple-600' : 'text-muted-foreground'}`}>
+            <GraduationCap size={16} /> <span>技能交换</span>
+          </button>
+        </div>
+
+        <div className="flex gap-2">
+          <div className="relative flex-1 group">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"><Search size={16} /></span>
+            <input
+              type="text"
+              placeholder={activeTab === 'item' ? "搜索闲置..." : "搜索技能..."}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-xl bg-muted pl-9 pr-10 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+            />
+          </div>
+          <Link href="/publish" className="shrink-0 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground flex items-center gap-1 shadow-sm">
+            <Plus size={18} /> 发布
+          </Link>
+        </div>
+      </div>
+
+      <div className="p-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+        {isLoading ? (
+          <p className="col-span-full text-center text-muted-foreground py-10">加载中...</p>
+        ) : isError ? (
+          <p className="col-span-full text-center text-red-500 py-10">获取数据失败，请确保后端服务已启动并已重启前端服务</p>
+        ) : items.length === 0 ? (
+          <p className="col-span-full text-center text-muted-foreground py-10">暂无数据</p>
+        ) : (
+          items.map((item: Item) => (
+            <Link key={item.id} href={`/marketplace/${item.id}`}>
+              <article className="bg-card rounded-2xl overflow-hidden border shadow-sm hover:shadow-md transition-all h-full flex flex-col">
+                <div className="aspect-square bg-muted relative">
+                  {item.cover_images?.[0] ? (
+                    <img src={item.cover_images[0]} alt={item.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground opacity-50">
+                       <Package size={48} />
+                    </div>
+                  )}
+                </div>
+                <div className="p-3 flex flex-col flex-1 justify-between">
+                  <h3 className="text-sm font-medium line-clamp-2">{item.title}</h3>
+                  <div className="mt-2 flex items-end justify-between">
+                    <span className="text-base font-bold text-primary">¥{item.price}</span>
+                  </div>
+                </div>
+              </article>
+            </Link>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/app/profile/page.tsx">
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth-store";
+import { toast } from "sonner";
+import { 
+  CheckCircle2, Star, Settings, LogOut, Package, 
+  Heart, FileText, Edit, X, Camera 
+} from "lucide-react";
+
+export default function ProfilePage() {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { logout } = useAuthStore();
+  
+  // 1. 弹窗与表单状态
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ avatar_url: "", bio: "" });
+
+  // 2. 获取个人数据
+  const { data: user, isLoading: isUserLoading } = useQuery({
+    queryKey: ["users", "me"],
+    queryFn: () => apiClient.get<any>("/users/me"),
+  });
+
+  // 3. 获取我发布的商品
+  const { data: myItemsData, isLoading: isItemsLoading } = useQuery({
+    queryKey: ["items", "my"],
+    queryFn: () => apiClient.get<any>("/items", { params: { owner_id: user?.id } }),
+    enabled: !!user?.id,
+  });
+
+  // 4. 编辑资料 Mutation
+  const updateProfileMutation = useMutation({
+    mutationFn: (data: { avatar_url?: string; bio?: string }) => 
+      apiClient.patch("/users/me", data),
+    onSuccess: () => {
+      toast.success("资料更新成功");
+      setIsEditModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["users", "me"] });
+    },
+    onError: (err: any) => toast.error(err.message || "更新失败"),
+  });
+
+  // 处理逻辑
+  const handleOpenEdit = () => {
+    setEditForm({ 
+      avatar_url: user?.avatar_url || "", 
+      bio: user?.bio || "" 
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProfileMutation.mutate(editForm);
+  };
+
+  const handleLogout = () => {
+    logout();
+    router.replace("/login");
+  };
+
+  // 加载与未登录拦截
+  if (isUserLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
+        <div className="animate-pulse flex flex-col items-center gap-2">
+          <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+          <p>加载个人信息中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-muted-foreground">
+        <p>请先登录后查看个人中心</p>
+        <Link href="/login" className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg shadow-primary/20">
+          去登录
+        </Link>
+      </div>
+    );
+  }
+
+  const myItems = myItemsData?.items || [];
+
+  return (
+    <div className="min-h-screen pb-24 bg-background">
+      {/* 头部：用户信息区 */}
+      <div className="bg-gradient-to-b from-primary/15 to-background px-4 pt-10 pb-6">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/60 to-primary flex items-center justify-center text-3xl font-bold text-primary-foreground shadow-lg overflow-hidden border-4 border-background">
+                {user.avatar_url ? (
+                  <img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  user.username.charAt(0).toUpperCase()
+                )}
+              </div>
+              <div className="absolute -bottom-1 -right-1 bg-white p-0.5 rounded-full shadow-sm">
+                <CheckCircle2 className="w-5 h-5 text-blue-500 fill-blue-100" />
+              </div>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold">{user.username}</h1>
+              <div className="flex items-center gap-2 mt-1.5">
+                <div className="flex items-center gap-1 bg-amber-100 px-2 py-0.5 rounded text-[10px] font-bold text-amber-700 border border-amber-200">
+                  <Star size={12} className="fill-amber-500 text-amber-500" /> 交易 {user.reputation_trade}
+                </div>
+                <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded text-[10px] font-bold text-blue-600 border border-blue-100">
+                  <CheckCircle2 size={12} /> 技能 {user.reputation_skill}
+                </div>
+              </div>
+            </div>
+          </div>
+          <button 
+            onClick={handleOpenEdit}
+            className="flex items-center gap-1 shrink-0 rounded-xl border bg-background/50 backdrop-blur-sm px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
+          >
+            <Edit size={14} /> 编辑
+          </button>
+        </div>
+
+        <p className="text-sm text-muted-foreground leading-relaxed mt-2 px-1">
+          {user.bio || "点击编辑添加个人简介..."}
+        </p>
+
+        {/* 核心统计与入口 */}
+        <div className="grid grid-cols-3 gap-3 mt-6">
+          <div className="bg-card rounded-2xl p-3 flex flex-col items-center justify-center border shadow-sm">
+            <span className="text-lg font-bold">{(user.trade_count || 0) + (user.skill_count || 0)}</span>
+            <span className="text-[10px] text-muted-foreground font-medium">累计成交</span>
+          </div>
+          <Link href="/orders" className="bg-card rounded-2xl p-3 flex flex-col items-center justify-center border shadow-sm hover:bg-blue-50/50 hover:border-blue-200 transition-all group">
+            <FileText className="w-5 h-5 mb-1 text-blue-500 group-hover:scale-110 transition-transform" />
+            <span className="text-[10px] text-muted-foreground font-medium">我的订单</span>
+          </Link>
+          <Link href="/wishlists" className="bg-card rounded-2xl p-3 flex flex-col items-center justify-center border shadow-sm hover:bg-red-50/50 hover:border-red-200 transition-all group">
+            <Heart className="w-5 h-5 mb-1 text-red-500 group-hover:scale-110 transition-transform" />
+            <span className="text-[10px] text-muted-foreground font-medium">心愿单</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* 列表：我发布的内容 */}
+      <div className="px-4 mt-4 space-y-4">
+        <h2 className="font-bold text-lg flex items-center gap-2">
+          我发布的
+          <span className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-full font-medium">
+            {myItems.length}
+          </span>
+        </h2>
+        
+        <div className="space-y-3">
+          {isItemsLoading ? (
+             <div className="text-sm text-muted-foreground text-center py-10">加载商品中...</div>
+          ) : myItems.length === 0 ? (
+             <div className="text-center py-10 border-2 border-dashed rounded-3xl border-muted flex flex-col items-center justify-center gap-2">
+               <Package size={32} className="text-muted-foreground/30" />
+               <p className="text-sm text-muted-foreground">你还没有发布过任何内容</p>
+               <Link href="/publish" className="text-primary text-xs font-bold hover:underline">去发布第一个商品</Link>
+             </div>
+          ) : (
+            myItems.map((item: any) => (
+              <Link key={item.id} href={`/marketplace/${item.id}`}>
+                <div className="flex items-center gap-3 bg-card border rounded-2xl p-3 hover:shadow-md transition-all">
+                  <div className="h-16 w-16 shrink-0 rounded-xl bg-muted overflow-hidden">
+                    {item.cover_images?.[0] ? (
+                       <img src={item.cover_images[0]} alt="cover" className="w-full h-full object-cover" />
+                    ) : (
+                       <div className="w-full h-full flex items-center justify-center text-muted-foreground"><Package size={20} /></div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium text-sm line-clamp-1">{item.title}</p>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium border ${
+                        item.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-500 border-slate-200'
+                      }`}>
+                        {item.status === 'active' ? '在售' : '已售出'}
+                      </span>
+                    </div>
+                    <p className="font-bold text-primary mt-2">¥{item.price}</p>
+                  </div>
+                </div>
+              </Link>
+            ))
+          )}
+        </div>
+
+        {/* 底部功能菜单 */}
+        <div className="border rounded-2xl overflow-hidden divide-y bg-card mt-8 shadow-sm">
+          <button className="w-full flex items-center justify-between px-4 py-4 hover:bg-muted/50 transition-colors text-left group">
+            <span className="flex items-center gap-3 text-sm font-medium">
+              <Settings size={18} className="text-muted-foreground group-hover:text-foreground transition-colors" /> 
+              账号设置
+            </span>
+            <span className="text-muted-foreground">›</span>
+          </button>
+          
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center justify-between px-4 py-4 hover:bg-red-50 transition-colors text-left group"
+          >
+            <span className="flex items-center gap-3 text-sm font-medium text-red-500">
+              <LogOut size={18} /> 
+              退出登录
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* 编辑资料弹窗 (Portal-like) */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-background w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">编辑资料</h2>
+              <button 
+                onClick={() => setIsEditModalOpen(false)}
+                className="p-1 hover:bg-muted rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSaveProfile} className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold flex items-center gap-2">
+                  <Camera size={16} className="text-primary"/> 头像链接
+                </label>
+                <input 
+                  value={editForm.avatar_url}
+                  onChange={e => setEditForm({...editForm, avatar_url: e.target.value})}
+                  placeholder="https://..."
+                  className="w-full rounded-xl border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">个人简介</label>
+                <textarea 
+                  value={editForm.bio}
+                  onChange={e => setEditForm({...editForm, bio: e.target.value})}
+                  rows={3}
+                  placeholder="介绍一下你自己..."
+                  className="w-full rounded-xl border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+                />
+              </div>
+              
+              <button 
+                type="submit"
+                disabled={updateProfileMutation.isPending}
+                className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-bold hover:opacity-90 disabled:opacity-50 transition-all shadow-lg shadow-primary/20"
+              >
+                {updateProfileMutation.isPending ? "正在保存..." : "保存修改"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+</file>
+
+</files>
