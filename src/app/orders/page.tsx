@@ -7,7 +7,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "sonner";
-import { Package, Clock, CheckCircle2 } from "lucide-react";
+import { Package, Clock, CheckCircle2, MessageCircle } from "lucide-react";
 
 interface Order {
   id: number;
@@ -143,7 +143,7 @@ export default function OrdersPage() {
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center gap-3">
+                <Link href={`/marketplace/${order.item_id}`} className="flex justify-between items-center gap-3 hover:opacity-80 transition-opacity">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className="h-12 w-12 shrink-0 rounded-lg bg-muted overflow-hidden">
                       {order.item_cover ? (
@@ -162,9 +162,16 @@ export default function OrdersPage() {
                   <div className="text-right shrink-0">
                     <p className="text-lg font-bold text-primary">¥{order.price}</p>
                   </div>
-                </div>
+                </Link>
 
                 <div className="pt-2 flex flex-wrap justify-end gap-2 border-t border-dashed">
+                  <Link
+                    href={`/chat?userId=${isBuyer ? order.seller_id : order.buyer_id}`}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg border hover:bg-muted flex items-center gap-1.5"
+                  >
+                    <MessageCircle size={14} />
+                    {isBuyer ? "联系卖家" : "联系买家"}
+                  </Link>
                   {order.status === "pending" && (
                     <>
                       <button
