@@ -1,187 +1,186 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
+import { apiClient } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth-store";
 import { toast } from "sonner";
+import { Package, ShieldCheck, MessageSquare, ChevronLeft, MapPin, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  getOrderById,
-  getOrderPrimaryAction,
-  getOrderStatusMeta,
-  getViewerRoleMeta,
-  type OrderStatus,
-} from "@/lib/mock-orders";
 
 export default function OrderDetailPage() {
-  const params = useParams();
+  const { id } = useParams();
   const router = useRouter();
-  const id = params.id as string;
-  const order = getOrderById(id);
-  const [status, setStatus] = useState<OrderStatus>(order?.status ?? "pending");
+  const queryClient = useQueryClient();
+  const { user } = useAuthStore();
 
-  const primaryAction = useMemo(() => {
-    if (!order) {
-      return null;
-    }
-    return getOrderPrimaryAction(status, order.viewerRole);
-  }, [order, status]);
+  const { data: order, isLoading } = useQuery({
+    queryKey: ["order", id],
+    queryFn: () => apiClient.get<Record<string, unknown>>(`/orders/${id}`),
+  });
 
-  if (!order) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 text-muted-foreground">
-        <span className="text-6xl">📦</span>
-        <p className="text-lg font-medium">订单不存在</p>
-        <Link href="/orders">
-          <Button variant="outline">返回订单列表</Button>
-        </Link>
-      </div>
-    );
-  }
+  type ItemBrief = { id: number; title: string; cover_images?: string[] };
 
-  const statusMeta = getOrderStatusMeta(status);
-  const roleMeta = getViewerRoleMeta(order.viewerRole);
-  const counterpartName =
-    order.viewerRole === "buyer" ? order.sellerName : order.buyerName;
+  const { data: item } = useQuery({
+    queryKey: ["item", order && (order as { item_id?: number }).item_id],
+    queryFn: () => apiClient.get<ItemBrief>(`/items/${(order as { item_id: number }).item_id}`),
+    enabled: !!(order && (order as { item_id?: number }).item_id),
+  });
 
-  function handlePrimaryAction() {
-    if (!primaryAction) {
-      return;
-    }
+  const confirmMutation = useMutation({
+    mutationFn: () => apiClient.patch(`/orders/${id}/confirm`),
+    onSuccess: () => {
+      toast.success("订单状态已更新");
+      queryClient.invalidateQueries({ queryKey: ["order", id] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+    onError: (err: { message?: string }) => toast.error(err.message || "操作失败"),
+  });
 
-    if (primaryAction.key === "accept") {
-      setStatus("confirmed");
-      toast.success("订单已接受", {
-        description: "订单状态已更新为 confirmed，接下来等待买家确认收货。",
-      });
-      return;
-    }
+  const completeMutation = useMutation({
+    mutationFn: () => apiClient.patch(`/orders/${id}/complete`),
+    onSuccess: () => {
+      toast.success("已记录你的确认");
+      queryClient.invalidateQueries({ queryKey: ["order", id] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+    onError: (err: { message?: string }) => toast.error(err.message || "操作失败"),
+  });
 
-    setStatus("completed");
-    toast.success("已确认收货", {
-      description: "订单状态已更新为 completed。",
-    });
-  }
+  const cancelMutation = useMutation({
+    mutationFn: () => apiClient.patch(`/orders/${id}/cancel`),
+    onSuccess: () => {
+      toast.success("订单已取消");
+      queryClient.invalidateQueries({ queryKey: ["order", id] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+    },
+    onError: (err: { message?: string }) => toast.error(err.message || "操作失败"),
+  });
+
+  if (isLoading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">正在加载订单详情...</div>;
+  if (!order) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">找不到该订单</div>;
+
+  const o = order as {
+    id: number;
+    item_id: number;
+    buyer_id: number;
+    seller_id: number;
+    price: number;
+    status: string;
+    note?: string | null;
+    created_at: string;
+    completed_by_buyer?: boolean;
+    completed_by_seller?: boolean;
+  };
+
+  const uid = Number(user?.id);
+  const isBuyer = o.buyer_id === uid;
+
+  const statusMap: Record<string, { label: string; color: string; desc: string }> = {
+    pending: { label: "等待确认", color: "text-amber-600 bg-amber-50 border-amber-200", desc: "卖家或买家确认后进入进行中。" },
+    confirmed: { label: "进行中", color: "text-blue-600 bg-blue-50 border-blue-200", desc: "线下见面交易后，双方分别点击完成。" },
+    completed: { label: "已完成", color: "text-green-600 bg-green-50 border-green-200", desc: "交易已顺利结束。" },
+    cancelled: { label: "已取消", color: "text-slate-600 bg-slate-50 border-slate-200", desc: "该订单已被取消。" },
+  };
+
+  const currentStatus = statusMap[o.status] || statusMap.pending;
 
   return (
-    <div className="min-h-screen p-4 md:p-6">
-      <div className="mx-auto max-w-3xl space-y-5">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.back()}
-            className="rounded-full p-1.5 text-lg leading-none transition-colors hover:bg-muted"
-            aria-label="返回"
-          >
-            ←
-          </button>
-          <div className="min-w-0">
-            <p className="text-sm text-muted-foreground">订单详情</p>
-            <h1 className="truncate text-xl font-bold">{order.itemTitle}</h1>
-          </div>
-        </div>
+    <div className="min-h-screen bg-muted/30 pb-28">
+      <div className="bg-background border-b px-4 py-3 flex items-center gap-3 sticky top-0 z-10">
+        <button type="button" onClick={() => router.back()} className="p-1.5 hover:bg-muted rounded-full">
+          <ChevronLeft size={24} />
+        </button>
+        <span className="font-bold">订单详情</span>
+      </div>
 
-        <div className="rounded-3xl border bg-card p-5 shadow-sm">
-          <div className="flex items-start gap-4">
-            <div
-              className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br ${order.itemGradient} text-4xl`}
-            >
-              {order.itemEmoji}
-            </div>
-            <div className="min-w-0 flex-1 space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusMeta.className}`}>
-                  {statusMeta.label}
-                </span>
-                <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
-                  {roleMeta.label}
-                </span>
-              </div>
-              <div>
-                <p className="text-lg font-semibold">{order.itemTitle}</p>
-                <p className="mt-1 text-sm text-muted-foreground">订单号：{order.id}</p>
-              </div>
-              <div className="grid gap-2 text-sm text-muted-foreground sm:grid-cols-2">
-                <p>
-                  {roleMeta.counterpartLabel}：<span className="font-medium text-foreground">{counterpartName}</span>
-                </p>
-                <p>
-                  金额：<span className="font-medium text-foreground">¥{order.price}</span>
-                </p>
-                <p>
-                  下单时间：<span className="font-medium text-foreground">{order.createdAt}</span>
-                </p>
-                <p>
-                  当前状态：<span className="font-medium text-foreground">{status}</span>
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+      <div className={`${currentStatus.color} px-6 py-8 border-b`}>
+        <h1 className="text-2xl font-bold mb-2">{currentStatus.label}</h1>
+        <p className="text-sm opacity-90">{currentStatus.desc}</p>
+      </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <section className="rounded-3xl border bg-card p-5">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              交易安排
-            </h2>
-            <div className="mt-3 space-y-2 text-sm">
-              <p>
-                交易时间：
-                <span className="font-medium text-foreground"> {order.meetingTime}</span>
-              </p>
-              <p>
-                交易地点：
-                <span className="font-medium text-foreground"> {order.meetingLocation}</span>
-              </p>
-            </div>
-          </section>
-
-          <section className="rounded-3xl border bg-card p-5">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              订单说明
-            </h2>
-            <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-              {order.note}
-            </p>
-          </section>
-        </div>
-
-        <section className="rounded-3xl border bg-card p-5">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Conditional Action Buttons
+      <div className="p-4 space-y-4 max-w-2xl mx-auto">
+        <div className="bg-background rounded-2xl p-4 border shadow-sm">
+          <h2 className="text-sm font-bold text-muted-foreground mb-3 flex items-center gap-2">
+            <Package size={16} /> 关联商品
           </h2>
-          <div className="mt-3 space-y-3">
-            {primaryAction ? (
-              <>
-                <p className="text-sm text-muted-foreground">
-                  当前根据订单状态 <span className="font-medium text-foreground">{status}</span> 与
-                  用户角色 <span className="font-medium text-foreground">{order.viewerRole}</span>，
-                  需要显示主操作按钮：
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <Button onClick={handlePrimaryAction}>{primaryAction.label}</Button>
-                  <Link href="/chat">
-                    <Button variant="outline">联系{roleMeta.counterpartLabel}</Button>
-                  </Link>
-                </div>
-                <p className="text-sm text-primary">{primaryAction.description}</p>
-              </>
-            ) : (
-              <>
-                <p className="text-sm text-muted-foreground">
-                  当前状态和角色组合下，无需显示 Accept / Confirm Receipt 主按钮。
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <Link href="/chat">
-                    <Button variant="outline">联系{roleMeta.counterpartLabel}</Button>
-                  </Link>
-                  <Link href="/orders">
-                    <Button variant="ghost">返回订单列表</Button>
-                  </Link>
-                </div>
-              </>
-            )}
+          {item ? (
+            <Link href={`/marketplace/${item.id}`} className="flex gap-3 items-center group">
+              <div className="h-16 w-16 bg-muted rounded-xl overflow-hidden shrink-0">
+                {item.cover_images?.[0] ? (
+                  <img src={item.cover_images[0]} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <Package className="m-auto h-full text-muted-foreground/30" />
+                )}
+              </div>
+              <div className="flex-1">
+                <p className="font-medium text-sm group-hover:text-primary transition-colors">{item.title}</p>
+                <p className="text-xs text-muted-foreground mt-1">点击查看商品</p>
+              </div>
+            </Link>
+          ) : (
+            <p className="text-sm text-muted-foreground">商品信息加载中或已失效</p>
+          )}
+        </div>
+
+        <div className="bg-background rounded-2xl p-4 border shadow-sm space-y-4">
+          <h2 className="text-sm font-bold text-muted-foreground flex items-center gap-2 border-b pb-2">
+            <ShieldCheck size={16} /> 交易信息
+          </h2>
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-muted-foreground">订单编号</span>
+            <span className="font-mono">O{o.id}</span>
           </div>
-        </section>
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-muted-foreground">成交价格</span>
+            <span className="font-bold text-primary text-lg">¥{o.price}</span>
+          </div>
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-muted-foreground">创建时间</span>
+            <span>{new Date(o.created_at).toLocaleString()}</span>
+          </div>
+          {o.note && (
+            <div className="pt-2 border-t mt-2">
+              <span className="text-xs text-muted-foreground mb-1 block flex items-center gap-1">
+                <MessageSquare size={12} /> 留言
+              </span>
+              <div className="bg-muted/50 p-3 rounded-xl text-sm leading-relaxed">{o.note}</div>
+            </div>
+          )}
+        </div>
+
+        <Link
+          href="/map"
+          className="flex items-center justify-center gap-2 rounded-2xl border bg-background p-4 text-sm font-medium hover:bg-muted/50 transition-colors"
+        >
+          <MapPin size={18} className="text-primary" />
+          导航到校园交易地图（约定见面点）
+        </Link>
+
+        <div className="flex flex-col gap-2">
+          {o.status === "pending" && (
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1 rounded-xl" onClick={() => cancelMutation.mutate()} disabled={cancelMutation.isPending}>
+                取消订单
+              </Button>
+              <Button className="flex-1 rounded-xl" onClick={() => confirmMutation.mutate()} disabled={confirmMutation.isPending}>
+                确认
+              </Button>
+            </div>
+          )}
+          {o.status === "confirmed" && (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground text-center">
+                双方均确认后订单完成。当前：{o.completed_by_buyer ? "买家✓" : "买家…"} · {o.completed_by_seller ? "卖家✓" : "卖家…"}
+              </p>
+              <Button className="w-full rounded-xl bg-green-600 hover:bg-green-700" onClick={() => completeMutation.mutate()} disabled={completeMutation.isPending}>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                {isBuyer ? "我已收到物品" : "我已交付物品"}
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

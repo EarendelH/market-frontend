@@ -1,114 +1,386 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useQueries, useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth-store";
+import { reputationToFiveScale } from "@/lib/reputation";
+import {
+  BookOpen,
+  GraduationCap,
+  MapPin,
+  Package,
+  Plus,
+  Search,
+  ShieldAlert,
+  ShoppingBag,
+  Sparkles,
+  Truck,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
-const categories = ["全部", "书籍教材", "电子产品", "生活用品", "服装", "运动器材", "其他"];
+interface ItemRow {
+  id: number;
+  type: string;
+  title: string;
+  price: number;
+  location_text?: string;
+  created_at: string;
+  cover_images: string[];
+  owner_id: number;
+  category_id?: number;
+  status?: string;
+}
 
-const mockItems = [
-  { id: "1",  title: "高等数学教材（第七版）",     price: 25,   originalPrice: 45,   condition: "九成新",   seller: "张同学", time: "2小时前", category: "书籍教材", location: "荔园",   gradient: "from-blue-400 to-blue-600",     emoji: "📚" },
-  { id: "2",  title: "AirPods Pro 二代",           price: 1200, originalPrice: 1999, condition: "八成新",   seller: "李同学", time: "5小时前", category: "电子产品", location: "工学院", gradient: "from-slate-400 to-slate-600",   emoji: "🎧" },
-  { id: "3",  title: "宿舍护眼台灯",               price: 35,   originalPrice: 89,   condition: "全新未拆", seller: "王同学", time: "1天前",   category: "生活用品", location: "南园",   gradient: "from-amber-400 to-orange-500",  emoji: "💡" },
-  { id: "4",  title: "Nike跑鞋 42码",              price: 180,  originalPrice: 560,  condition: "七成新",   seller: "陈同学", time: "1天前",   category: "服装",     location: "体育馆", gradient: "from-red-400 to-rose-600",      emoji: "👟" },
-  { id: "5",  title: "机械键盘（青轴）",           price: 220,  originalPrice: 380,  condition: "九成新",   seller: "刘同学", time: "2天前",   category: "电子产品", location: "理学院", gradient: "from-emerald-400 to-green-600", emoji: "⌨️" },
-  { id: "6",  title: "算法导论（英文第3版）",      price: 60,   originalPrice: 128,  condition: "八成新",   seller: "赵同学", time: "3天前",   category: "书籍教材", location: "图书馆", gradient: "from-violet-400 to-purple-600", emoji: "📖" },
-  { id: "7",  title: "瑜伽垫（全新未拆封）",       price: 45,   originalPrice: 88,   condition: "全新",     seller: "孙同学", time: "3天前",   category: "运动器材", location: "南园",   gradient: "from-teal-400 to-cyan-600",     emoji: "🧘" },
-  { id: "8",  title: "iPad mini 6 WiFi 256G",      price: 2800, originalPrice: 3799, condition: "九成新",   seller: "周同学", time: "4天前",   category: "电子产品", location: "工学院", gradient: "from-zinc-400 to-gray-600",     emoji: "📱" },
-  { id: "9",  title: "线性代数（同济第六版）",     price: 15,   originalPrice: 32,   condition: "八成新",   seller: "吴同学", time: "5天前",   category: "书籍教材", location: "荔园",   gradient: "from-indigo-400 to-blue-600",   emoji: "📐" },
-  { id: "10", title: "电动牙刷（Oral-B）",         price: 80,   originalPrice: 199,  condition: "九成新",   seller: "郑同学", time: "5天前",   category: "生活用品", location: "北园",   gradient: "from-sky-400 to-blue-500",      emoji: "🪥" },
-  { id: "11", title: "哑铃一对 5kg×2",             price: 55,   originalPrice: 120,  condition: "九成新",   seller: "钱同学", time: "6天前",   category: "运动器材", location: "体育馆", gradient: "from-stone-400 to-stone-600",   emoji: "🏋️" },
-  { id: "12", title: "优衣库羽绒服 M码",           price: 120,  originalPrice: 399,  condition: "九成新",   seller: "冯同学", time: "1周前",   category: "服装",     location: "北园",   gradient: "from-blue-300 to-indigo-400",   emoji: "🧥" },
+interface PublicUser {
+  id: number;
+  username: string;
+  reputation_trade?: number;
+  reputation_skill?: number;
+  avatar_url?: string | null;
+}
+
+const GUEST_DIALOG_KEY = "sustech_market_guest_prompt_v1";
+
+const categoryCards = [
+  {
+    key: "textbook" as const,
+    label: "二手教材",
+    sub: "教材 / 教辅",
+    icon: BookOpen,
+    className: "border-blue-200 bg-blue-50/80 hover:bg-blue-50",
+  },
+  {
+    key: "lost" as const,
+    label: "失物招领",
+    sub: "校园卡 · 物品",
+    icon: ShieldAlert,
+    className: "border-amber-200 bg-amber-50/80 hover:bg-amber-50",
+  },
+  {
+    key: "skill" as const,
+    label: "技能交换",
+    sub: "辅导 · 才艺",
+    icon: GraduationCap,
+    className: "border-violet-200 bg-violet-50/80 hover:bg-violet-50",
+  },
+  {
+    key: "errand" as const,
+    label: "跑腿 / 代取",
+    sub: "快递 · 代办",
+    icon: Truck,
+    className: "border-emerald-200 bg-emerald-50/80 hover:bg-emerald-50",
+  },
 ];
 
-export default function MarketplacePage() {
-  const [selectedCategory, setSelectedCategory] = useState("全部");
-  const [searchQuery, setSearchQuery] = useState("");
+function typeLabel(type: string) {
+  switch (type) {
+    case "skill":
+      return "技能";
+    case "lost":
+      return "失物";
+    case "errand":
+      return "跑腿";
+    default:
+      return "闲置";
+  }
+}
 
-  const filtered = mockItems.filter((item) => {
-    const matchCat = selectedCategory === "全部" || item.category === selectedCategory;
-    const matchSearch = !searchQuery || item.title.includes(searchQuery);
-    return matchCat && matchSearch;
+function priceLabel(item: ItemRow) {
+  if (item.type === "skill") return `¥${item.price} · 可协商`;
+  if (item.type === "lost") return "认领联系";
+  if (item.type === "errand") return `¥${item.price} 起`;
+  return `¥${item.price}`;
+}
+
+export default function MarketplacePage() {
+  const { user, isAuthenticated, isHydrating } = useAuthStore();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [category, setCategory] = useState<(typeof categoryCards)[number]["key"] | "all">("all");
+  const [guestOpen, setGuestOpen] = useState(false);
+  const debounceTimer = useRef<ReturnType<typeof setTimeout>>(null);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => setDebouncedSearch(value), 300);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || isHydrating) return;
+    if (isAuthenticated) return;
+    if (sessionStorage.getItem(GUEST_DIALOG_KEY)) return;
+    setGuestOpen(true);
+  }, [isAuthenticated, isHydrating]);
+
+  const dismissGuest = () => {
+    sessionStorage.setItem(GUEST_DIALOG_KEY, "1");
+    setGuestOpen(false);
+  };
+
+  const apiParams = useMemo(() => {
+    const params: Record<string, string> = {};
+    if (debouncedSearch.trim()) params.keyword = debouncedSearch.trim();
+    if (category === "skill") params.type = "skill";
+    else if (category === "lost") params.type = "lost";
+    else if (category === "errand") params.type = "errand";
+    else if (category === "textbook") {
+      params.type = "item";
+      params.category_id = "1";
+    }
+    return params;
+  }, [debouncedSearch, category]);
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["items", "feed", apiParams],
+    queryFn: () => apiClient.get<{ items: ItemRow[] }>("/items", { params: apiParams }),
   });
 
+  const items = data?.items ?? [];
+
+  const ownerIds = useMemo(() => [...new Set(items.map((i) => i.owner_id))], [items]);
+
+  const sellerQueries = useQueries({
+    queries: ownerIds.map((id) => ({
+      queryKey: ["users", "public", id],
+      queryFn: () => apiClient.get<PublicUser>(`/users/${id}`),
+      enabled: ownerIds.length > 0,
+      staleTime: 60_000,
+    })),
+  });
+
+  const sellerMap = useMemo(() => {
+    const m = new Map<number, PublicUser>();
+    ownerIds.forEach((id, idx) => {
+      const u = sellerQueries[idx]?.data;
+      if (u) m.set(id, u);
+    });
+    return m;
+  }, [ownerIds, sellerQueries]);
+
+  const { data: conversations = [] } = useQuery({
+    queryKey: ["conversations", "count"],
+    queryFn: () => apiClient.get<{ id: number; last_message?: string | null }[]>("/conversations"),
+    enabled: isAuthenticated && !isHydrating,
+    staleTime: 30_000,
+  });
+
+  const msgCount = conversations.filter((c) => c.last_message).length;
+
+  const tradeRep = user ? reputationToFiveScale(user.reputation_trade) : "—";
+
   return (
-    <div className="min-h-screen">
-      {/* Sticky search + filter header */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b px-4 py-3 space-y-3">
+    <div className="min-h-screen bg-background pb-24 relative">
+      <Dialog open={guestOpen} onOpenChange={(o) => !o && dismissGuest()}>
+        <DialogContent className="sm:max-w-md rounded-3xl">
+          <DialogHeader>
+            <DialogTitle>欢迎来到 SUSTech Market</DialogTitle>
+            <DialogDescription>
+              未登录可以浏览公开商品信息。发布商品、下单、聊天与心愿单匹配等功能需要登录南科大账号。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" className="rounded-xl" onClick={dismissGuest}>
+              先逛逛
+            </Button>
+            <Button asChild className="rounded-xl">
+              <Link href="/login">登录 / 注册</Link>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 顶栏：登录态展示信誉与消息 */}
+      <div className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur-sm px-4 py-3 space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <div className="h-9 w-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold shrink-0">
+              市
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-bold truncate">校园市集</p>
+              <p className="text-[10px] text-muted-foreground truncate">南科大 · 闲置 · 技能 · 失物</p>
+            </div>
+          </div>
+
+          {isHydrating ? (
+            <div className="h-9 w-24 rounded-xl bg-muted animate-pulse" />
+          ) : isAuthenticated && user ? (
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="hidden sm:flex flex-col items-end text-right">
+                <span className="text-xs font-semibold max-w-[7rem] truncate">{user.username}</span>
+                <span className="text-[10px] text-muted-foreground">
+                  信誉 <span className="text-amber-600 font-semibold">{tradeRep}</span>
+                </span>
+              </div>
+              <Link
+                href="/profile"
+                className="h-9 w-9 rounded-full bg-muted border overflow-hidden flex items-center justify-center text-sm font-bold"
+              >
+                {user.avatar_url ? (
+                  <img src={user.avatar_url} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  user.username.charAt(0).toUpperCase()
+                )}
+              </Link>
+              <Link
+                href="/chat"
+                className="relative rounded-xl border px-2.5 py-1.5 text-xs font-semibold hover:bg-muted"
+              >
+                消息
+                {msgCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] rounded-full bg-red-500 text-[10px] text-white flex items-center justify-center px-0.5">
+                    {msgCount > 99 ? "99+" : msgCount}
+                  </span>
+                )}
+              </Link>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 shrink-0">
+              <Link href="/login" className="text-xs font-semibold px-3 py-1.5 rounded-xl border hover:bg-muted">
+                登录
+              </Link>
+              <Link
+                href="/register"
+                className="text-xs font-semibold px-3 py-1.5 rounded-xl bg-primary text-primary-foreground"
+              >
+                注册
+              </Link>
+            </div>
+          )}
+        </div>
+
         <div className="flex gap-2">
-          <div className="relative flex-1">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-base leading-none pointer-events-none">🔍</span>
+          <div className="relative flex-1 group">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+              <Search size={16} />
+            </span>
             <input
               type="text"
-              placeholder="搜索校园好物..."
+              placeholder="关键词 / 书名 / 物品…"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl bg-muted pl-9 pr-4 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/40 transition-all"
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full rounded-xl bg-muted pl-9 pr-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
           <Link
-            href="/seller/upload"
-            className="shrink-0 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 active:scale-95 transition-all flex items-center gap-1"
+            href={isAuthenticated ? "/publish" : "/login?redirect=/publish"}
+            className="shrink-0 rounded-xl bg-primary px-3 sm:px-4 py-2 text-sm font-semibold text-primary-foreground flex items-center gap-1 shadow-sm"
           >
-            <span className="text-base leading-none">＋</span>
-            <span className="hidden sm:inline">发布</span>
+            <Plus size={18} /> <span className="hidden sm:inline">发布</span>
           </Link>
         </div>
+      </div>
 
-        {/* Category chips */}
-        <div className="flex gap-2 overflow-x-auto [scrollbar-width:none] [-webkit-overflow-scrolling:touch] pb-0.5">
-          {categories.map((cat) => (
+      {/* 分类入口 */}
+      <div className="px-4 pt-4 grid grid-cols-2 md:grid-cols-4 gap-2">
+        <button
+          type="button"
+          onClick={() => setCategory("all")}
+          className={`rounded-2xl border p-3 text-left transition-all ${
+            category === "all" ? "ring-2 ring-primary border-primary bg-primary/5" : "bg-card hover:bg-muted/50"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <span className="text-sm font-bold">全部</span>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">浏览全部信息流</p>
+        </button>
+        {categoryCards.map((c) => {
+          const Icon = c.icon;
+          const active = category === c.key;
+          return (
             <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-all ${
-                selectedCategory === cat
-                  ? "bg-primary text-primary-foreground shadow-sm"
-                  : "bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+              key={c.key}
+              type="button"
+              onClick={() => setCategory(c.key)}
+              className={`rounded-2xl border p-3 text-left transition-all ${c.className} ${
+                active ? "ring-2 ring-primary" : ""
               }`}
             >
-              {cat}
+              <div className="flex items-center gap-2">
+                <Icon className="h-5 w-5" />
+                <span className="text-sm font-bold">{c.label}</span>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">{c.sub}</p>
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
-      {/* Product grid */}
-      <div className="p-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-        {filtered.map((item) => (
-          <Link key={item.id} href={`/marketplace/${item.id}`}>
-            <article className="bg-card rounded-2xl overflow-hidden border hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 active:scale-[0.98]">
-              {/* Gradient image placeholder */}
-              <div className={`aspect-square bg-gradient-to-br ${item.gradient} flex items-center justify-center relative`}>
-                <span className="text-4xl drop-shadow-sm">{item.emoji}</span>
-                <span className="absolute top-2 right-2 rounded-full bg-black/25 px-1.5 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
-                  {item.condition}
-                </span>
-              </div>
-
-              {/* Info */}
-              <div className="p-3 space-y-1.5">
-                <p className="text-sm font-medium leading-snug line-clamp-2">{item.title}</p>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-base font-bold">¥{item.price}</span>
-                  <span className="text-xs text-muted-foreground line-through">¥{item.originalPrice}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>📍 {item.location}</span>
-                  <span>{item.time}</span>
-                </div>
-              </div>
-            </article>
-          </Link>
-        ))}
+      <div className="p-4 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+        {isLoading ? (
+          <p className="col-span-full text-center text-muted-foreground py-10">加载中...</p>
+        ) : isError ? (
+          <p className="col-span-full text-center text-red-500 py-10">
+            无法连接后端，请确认 Flask 已在 <code className="text-xs">localhost:5001</code> 运行并已启动前端。
+          </p>
+        ) : items.length === 0 ? (
+          <p className="col-span-full text-center text-muted-foreground py-10">暂无符合条件的商品</p>
+        ) : (
+          items.map((item: ItemRow) => {
+            const seller = sellerMap.get(item.owner_id);
+            const rep = seller
+              ? reputationToFiveScale(item.type === "skill" ? seller.reputation_skill : seller.reputation_trade)
+              : "—";
+            return (
+              <Link key={item.id} href={`/marketplace/${item.id}`}>
+                <article className="bg-card rounded-2xl overflow-hidden border shadow-sm hover:shadow-md transition-all h-full flex flex-col">
+                  <div className="aspect-square bg-muted relative">
+                    {item.cover_images?.[0] ? (
+                      <img src={item.cover_images[0]} alt={item.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground opacity-50">
+                        <Package size={48} />
+                      </div>
+                    )}
+                    <span className="absolute left-2 top-2 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-semibold border">
+                      {typeLabel(item.type)}
+                    </span>
+                  </div>
+                  <div className="p-3 flex flex-col flex-1 justify-between gap-2">
+                    <h3 className="text-sm font-medium line-clamp-2 leading-snug">{item.title}</h3>
+                    <div className="space-y-1 text-[11px] text-muted-foreground">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-base font-bold text-primary">{priceLabel(item)}</span>
+                      </div>
+                      {item.location_text && (
+                        <div className="flex items-center gap-1 truncate">
+                          <MapPin className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{item.location_text}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center justify-between gap-1">
+                        <span>{new Date(item.created_at).toLocaleString()}</span>
+                        <span className="shrink-0">
+                          信誉 <span className="font-semibold text-foreground">{rep}</span>
+                        </span>
+                      </div>
+                      {seller && (
+                        <div className="flex items-center gap-1 truncate pt-0.5 border-t border-dashed">
+                          <ShoppingBag className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{seller.username}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              </Link>
+            );
+          })
+        )}
       </div>
-
-      {filtered.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-32 text-muted-foreground gap-3">
-          <span className="text-6xl">🫙</span>
-          <p className="font-medium">暂无相关商品</p>
-          <p className="text-sm">换个关键词试试？</p>
-        </div>
-      )}
     </div>
   );
 }

@@ -34,6 +34,7 @@ class ApiClient {
     const { params, headers, data, ...rest } = options;
 
     let url = `${this.baseURL}${endpoint}`;
+
     if (params) {
       const searchParams = new URLSearchParams();
       Object.entries(params).forEach(([key, value]) => {
@@ -138,6 +139,12 @@ class ApiClient {
 
   delete<T>(endpoint: string, options?: RequestOptions) {
     return this.request<T>(endpoint, { ...options, method: "DELETE" });
+  }
+
+  async upload(file: File): Promise<{ url: string; filename: string }> {
+    const formData = new FormData();
+    formData.append("file", file);
+    return this.post<{ url: string; filename: string }>("/upload", formData);
   }
 }
 

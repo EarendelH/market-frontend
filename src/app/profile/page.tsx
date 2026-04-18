@@ -3,250 +3,445 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth-store";
-
-const mockUser = {
-  name: "南科小卖家",
-  username: "@sustech_2024",
-  avatar: "南",
-  college: "工学院",
-  joinDate: "2024 年 9 月",
-  bio: "SUSTech 大三学生，喜欢淘便宜好物，东西多到放不下 😂",
-  stats: { published: 8, sold: 15, rating: 4.9, followers: 32 },
-};
-
-const myItems = [
-  { id: "5",  title: "机械键盘（青轴）",      price: 220, condition: "九成新", gradient: "from-emerald-400 to-green-600",  emoji: "⌨️", status: "在售" },
-  { id: "11", title: "哑铃一对 5kg×2",        price: 55,  condition: "九成新", gradient: "from-stone-400 to-stone-600",    emoji: "🏋️", status: "在售" },
-  { id: "2",  title: "AirPods Pro 二代",      price: 1200,condition: "八成新", gradient: "from-slate-400 to-slate-600",   emoji: "🎧", status: "已售" },
-  { id: "9",  title: "线性代数（同济第六版）", price: 15,  condition: "八成新", gradient: "from-indigo-400 to-blue-600",   emoji: "📐", status: "已售" },
-];
-
-const favorites = [
-  { id: "1",  title: "高等数学教材（第七版）", price: 25,  gradient: "from-blue-400 to-blue-600",    emoji: "📚" },
-  { id: "8",  title: "iPad mini 6 WiFi 256G", price: 2800, gradient: "from-zinc-400 to-gray-600",    emoji: "📱" },
-  { id: "7",  title: "瑜伽垫（全新未拆封）",  price: 45,  gradient: "from-teal-400 to-cyan-600",    emoji: "🧘" },
-];
-
-const tabs = ["我的发布", "已购商品", "收藏"];
+import { toast } from "sonner";
+import {
+  CheckCircle2,
+  Star,
+  Settings,
+  LogOut,
+  Package,
+  Heart,
+  FileText,
+  Edit,
+  X,
+  Camera,
+  MessageCircle,
+  Bookmark,
+  Upload,
+} from "lucide-react";
+import { reputationToFiveScale } from "@/lib/reputation";
 
 export default function ProfilePage() {
-  const [activeTab, setActiveTab] = useState("我的发布");
-  const [editing, setEditing] = useState(false);
   const router = useRouter();
-  const user = useAuthStore((state) => state.user);
-  const logout = useAuthStore((state) => state.logout);
+  const queryClient = useQueryClient();
+  const { logout, isAuthenticated, isHydrating } = useAuthStore();
+  
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ avatar_url: "", bio: "" });
+  const [settingsForm, setSettingsForm] = useState({ username: "", current_password: "", new_password: "" });
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
-  const displayUser = {
-    name: user?.username ?? mockUser.name,
-    username: user ? `@${user.username}` : mockUser.username,
-    avatar: user?.username?.slice(0, 1) ?? mockUser.avatar,
-    college: mockUser.college,
-    joinDate: mockUser.joinDate,
-    bio: user?.bio ?? mockUser.bio,
-    stats: mockUser.stats,
+  // 2. 获取个人数据
+  const { data: user, isLoading: isUserLoading } = useQuery({
+    queryKey: ["users", "me"],
+    queryFn: () => apiClient.get<any>("/users/me"),
+    enabled: isAuthenticated && !isHydrating,
+  });
+
+  // 3. 获取我发布的商品
+  const { data: myItemsData, isLoading: isItemsLoading } = useQuery({
+    queryKey: ["items", "my"],
+    queryFn: () => apiClient.get<any>("/items", { params: { owner_id: user?.id } }),
+    enabled: !!user?.id,
+  });
+
+  const updateProfileMutation = useMutation({
+    mutationFn: (data: { avatar_url?: string; bio?: string }) => 
+      apiClient.patch("/users/me", data),
+    onSuccess: () => {
+      toast.success("资料更新成功");
+      setIsEditModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["users", "me"] });
+    },
+    onError: (err: { message?: string }) => toast.error(err.message || "更新失败"),
+  });
+
+  const updateUsernameMutation = useMutation({
+    mutationFn: (username: string) => apiClient.patch("/users/me/username", { username }),
+    onSuccess: () => {
+      toast.success("用户名已更新");
+      queryClient.invalidateQueries({ queryKey: ["users", "me"] });
+    },
+    onError: (err: { message?: string }) => toast.error(err.message || "更新失败"),
+  });
+
+  const updatePasswordMutation = useMutation({
+    mutationFn: (data: { current_password: string; new_password: string }) =>
+      apiClient.patch("/users/me/password", data),
+    onSuccess: () => {
+      toast.success("密码已更新");
+      setSettingsForm({ ...settingsForm, current_password: "", new_password: "" });
+    },
+    onError: (err: { message?: string }) => toast.error(err.message || "密码更新失败"),
+  });
+
+  const handleOpenEdit = () => {
+    setEditForm({ 
+      avatar_url: user?.avatar_url || "", 
+      bio: user?.bio || "" 
+    });
+    setIsEditModalOpen(true);
   };
 
-  function handleLogout() {
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingAvatar(true);
+    try {
+      const result = await apiClient.upload(file);
+      setEditForm({ ...editForm, avatar_url: result.url });
+      toast.success("头像已上传");
+    } catch {
+      toast.error("头像上传失败");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    updateProfileMutation.mutate(editForm);
+  };
+
+  const handleOpenSettings = () => {
+    setSettingsForm({ username: user?.username || "", current_password: "", new_password: "" });
+    setIsSettingsOpen(true);
+  };
+
+  const handleLogout = () => {
     logout();
-    router.push("/login");
+    router.replace("/login");
+  };
+
+  if (isHydrating) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
+        <div className="animate-pulse">加载中…</div>
+      </div>
+    );
   }
 
+  if (!isAuthenticated) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-muted-foreground p-6">
+        <p>请先登录后查看个人中心</p>
+        <Link href="/login?redirect=/profile" className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold shadow-lg shadow-primary/20">
+          去登录
+        </Link>
+      </div>
+    );
+  }
+
+  // 加载与未登录拦截
+  if (isUserLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
+        <div className="animate-pulse flex flex-col items-center gap-2">
+          <div className="h-8 w-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
+          <p>加载个人信息中...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen gap-4 text-muted-foreground">
+        <p>无法加载用户信息</p>
+        <Link href="/login" className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold">
+          重新登录
+        </Link>
+      </div>
+    );
+  }
+
+  const myItems = myItemsData?.items || [];
+  const tradeStars = reputationToFiveScale(user.reputation_trade);
+  const skillStars = reputationToFiveScale(user.reputation_skill);
+
   return (
-    <div className="min-h-screen">
-      {/* Profile header */}
-      <div className="bg-gradient-to-b from-primary/10 to-background px-4 pt-6 pb-4">
+    <div className="min-h-screen pb-24 bg-background">
+      {/* 头部：用户信息区 */}
+      <div className="bg-gradient-to-b from-primary/15 to-background px-4 pt-10 pb-6">
         <div className="flex items-start justify-between mb-4">
           <div className="flex items-center gap-4">
-            {/* Avatar */}
-            <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/60 to-primary flex items-center justify-center text-3xl font-bold text-primary-foreground shadow-lg">
-              {displayUser.avatar}
+            <div className="relative">
+              <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/60 to-primary flex items-center justify-center text-3xl font-bold text-primary-foreground shadow-lg overflow-hidden border-4 border-background">
+                {user.avatar_url ? (
+                  <img src={user.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  user.username.charAt(0).toUpperCase()
+                )}
+              </div>
+              <div className="absolute -bottom-1 -right-1 bg-white p-0.5 rounded-full shadow-sm">
+                <CheckCircle2 className="w-5 h-5 text-blue-500 fill-blue-100" />
+              </div>
             </div>
             <div>
-              <h1 className="text-xl font-bold">{displayUser.name}</h1>
-              <p className="text-sm text-muted-foreground">{displayUser.username}</p>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5 font-medium">
-                  {displayUser.college}
-                </span>
-                <span className="text-xs text-muted-foreground">加入于 {displayUser.joinDate}</span>
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={() => setEditing(!editing)}
-            className="shrink-0 rounded-xl border px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
-          >
-            编辑
-          </button>
-        </div>
-
-        {/* Bio */}
-        <p className="text-sm text-muted-foreground leading-relaxed">{displayUser.bio}</p>
-
-        {/* Stats */}
-        <div className="grid grid-cols-4 gap-2 mt-4">
-          {[
-            { label: "已发布", value: displayUser.stats.published },
-            { label: "已成交", value: displayUser.stats.sold },
-            { label: "信用评分", value: displayUser.stats.rating },
-            { label: "关注者", value: displayUser.stats.followers },
-          ].map(({ label, value }) => (
-            <div key={label} className="bg-card rounded-xl p-3 text-center border">
-              <p className="text-xl font-bold">{value}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="border-b px-4 flex gap-0">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`py-3 px-4 text-sm font-medium border-b-2 transition-colors -mb-px ${
-              activeTab === tab
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      <div className="p-4">
-        {activeTab === "我的发布" && (
-          <div className="space-y-3">
-            {myItems.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center gap-3 bg-card border rounded-2xl p-3 hover:shadow-md transition-all duration-200"
-              >
-                <Link
-                  href={`/marketplace/${item.id}`}
-                  className="flex min-w-0 flex-1 items-center gap-3"
-                >
-                  <div className={`h-14 w-14 shrink-0 rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center text-2xl`}>
-                    {item.emoji}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm line-clamp-1">{item.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{item.condition}</p>
-                    <p className="font-bold mt-1">¥{item.price}</p>
-                  </div>
-                </Link>
-
-                <div className="flex shrink-0 flex-col items-end gap-2">
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                    item.status === "在售"
-                      ? "bg-green-100 text-green-700"
-                      : "bg-muted text-muted-foreground"
-                  }`}>
-                    {item.status}
-                  </span>
-                  <Link
-                    href={`/seller/upload?mode=edit&id=${item.id}`}
-                    className="text-xs font-medium text-primary hover:underline"
-                  >
-                    编辑
-                  </Link>
+              <h1 className="text-xl font-bold">{user.username}</h1>
+              <div className="flex items-center gap-2 mt-1.5">
+                <div className="flex items-center gap-1 bg-amber-100 px-2 py-0.5 rounded text-[10px] font-bold text-amber-700 border border-amber-200">
+                  <Star size={12} className="fill-amber-500 text-amber-500" /> 交易 {tradeStars}
+                </div>
+                <div className="flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded text-[10px] font-bold text-blue-600 border border-blue-100">
+                  <CheckCircle2 size={12} /> 技能 {skillStars}
                 </div>
               </div>
-            ))}
-            <Link
-              href="/seller/upload?mode=publish&type=goods"
-              className="w-full rounded-2xl border-2 border-dashed py-6 text-sm text-muted-foreground hover:bg-muted/50 transition-colors flex flex-col items-center gap-2"
-            >
-              <span className="text-2xl">＋</span>
-              发布新商品
-            </Link>
+            </div>
           </div>
-        )}
-
-        {activeTab === "已购商品" && (
-          <div className="flex flex-col items-center justify-center py-20 text-muted-foreground gap-3">
-            <span className="text-5xl">🛍️</span>
-            <p className="font-medium">暂无购买记录</p>
-            <p className="text-sm">去市场看看心仪的好物？</p>
-            <Link href="/marketplace">
-              <button className="mt-2 rounded-xl bg-primary text-primary-foreground px-4 py-2 text-sm font-semibold hover:opacity-90 transition">
-                逛逛市场
-              </button>
-            </Link>
-          </div>
-        )}
-
-        {activeTab === "收藏" && (
-          <div className="grid grid-cols-2 gap-3">
-            {favorites.map((item) => (
-              <Link key={item.id} href={`/marketplace/${item.id}`}>
-                <article className="bg-card rounded-2xl overflow-hidden border hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5">
-                  <div className={`aspect-square bg-gradient-to-br ${item.gradient} flex items-center justify-center`}>
-                    <span className="text-4xl">{item.emoji}</span>
-                  </div>
-                  <div className="p-3 space-y-1">
-                    <p className="text-sm font-medium line-clamp-2 leading-snug">{item.title}</p>
-                    <span className="font-bold text-base">¥{item.price}</span>
-                  </div>
-                </article>
-              </Link>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Settings section */}
-      <div className="px-4 pb-8 mt-4">
-        <div className="border rounded-2xl overflow-hidden divide-y">
-          {[
-            { icon: "🔔", label: "通知设置" },
-            { icon: "🔒", label: "账号安全" },
-            { icon: "🎨", label: "外观设置" },
-          ].map(({ icon, label }) => (
-            <button
-              key={label}
-              className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-muted/50 transition-colors text-left"
-            >
-              <span className="flex items-center gap-3 text-sm font-medium">
-                <span>{icon}</span>
-                {label}
-              </span>
-              <span className="text-muted-foreground text-sm">›</span>
-            </button>
-          ))}
-          <Link
-            href="/report"
-            className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-muted/50 transition-colors text-left"
+          <button 
+            onClick={handleOpenEdit}
+            className="flex items-center gap-1 shrink-0 rounded-xl border bg-background/50 backdrop-blur-sm px-3 py-1.5 text-sm font-medium hover:bg-muted transition-colors"
           >
-            <span className="flex items-center gap-3 text-sm font-medium">
-              <span>🚩</span>
-              举报与反馈
-            </span>
-            <span className="text-muted-foreground text-sm">›</span>
-          </Link>
-          <Link
-            href="/admin"
-            className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-muted/50 transition-colors text-left"
-          >
-            <span className="flex items-center gap-3 text-sm font-medium">
-              <span>🛡️</span>
-              管理员数据看板
-            </span>
-            <span className="text-muted-foreground text-sm">›</span>
-          </Link>
+            <Edit size={14} /> 编辑
+          </button>
         </div>
 
-        <button
-          onClick={handleLogout}
-          className="w-full mt-4 rounded-2xl border border-red-200 py-3.5 text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors"
-        >
-          退出登录
-        </button>
+        <p className="text-sm text-muted-foreground leading-relaxed mt-2 px-1">
+          {user.bio || "点击编辑添加个人简介..."}
+        </p>
+
+        {/* 核心统计与入口 */}
+        <div className="grid grid-cols-3 gap-3 mt-6">
+          <div className="bg-card rounded-2xl p-3 flex flex-col items-center justify-center border shadow-sm">
+            <span className="text-lg font-bold">{(user.trade_count || 0) + (user.skill_count || 0)}</span>
+            <span className="text-[10px] text-muted-foreground font-medium">累计成交</span>
+          </div>
+          <Link href="/orders" className="bg-card rounded-2xl p-3 flex flex-col items-center justify-center border shadow-sm hover:bg-blue-50/50 hover:border-blue-200 transition-all group">
+            <FileText className="w-5 h-5 mb-1 text-blue-500 group-hover:scale-110 transition-transform" />
+            <span className="text-[10px] text-muted-foreground font-medium">我的订单</span>
+          </Link>
+          <Link href="/wishlists" className="bg-card rounded-2xl p-3 flex flex-col items-center justify-center border shadow-sm hover:bg-red-50/50 hover:border-red-200 transition-all group">
+            <Heart className="w-5 h-5 mb-1 text-red-500 group-hover:scale-110 transition-transform" />
+            <span className="text-[10px] text-muted-foreground font-medium">心愿单</span>
+          </Link>
+        </div>
       </div>
+
+      {/* 列表：我发布的内容 */}
+      <div className="px-4 mt-4 space-y-4">
+        <h2 className="font-bold text-lg flex items-center gap-2">
+          我发布的
+          <span className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-full font-medium">
+            {myItems.length}
+          </span>
+        </h2>
+        
+        <div className="space-y-3">
+          {isItemsLoading ? (
+             <div className="text-sm text-muted-foreground text-center py-10">加载商品中...</div>
+          ) : myItems.length === 0 ? (
+             <div className="text-center py-10 border-2 border-dashed rounded-3xl border-muted flex flex-col items-center justify-center gap-2">
+               <Package size={32} className="text-muted-foreground/30" />
+               <p className="text-sm text-muted-foreground">你还没有发布过任何内容</p>
+               <Link href="/publish" className="text-primary text-xs font-bold hover:underline">去发布第一个商品</Link>
+             </div>
+          ) : (
+            myItems.map((item: any) => (
+              <Link key={item.id} href={`/marketplace/${item.id}`}>
+                <div className="flex items-center gap-3 bg-card border rounded-2xl p-3 hover:shadow-md transition-all">
+                  <div className="h-16 w-16 shrink-0 rounded-xl bg-muted overflow-hidden">
+                    {item.cover_images?.[0] ? (
+                       <img src={item.cover_images[0]} alt="cover" className="w-full h-full object-cover" />
+                    ) : (
+                       <div className="w-full h-full flex items-center justify-center text-muted-foreground"><Package size={20} /></div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-medium text-sm line-clamp-1">{item.title}</p>
+                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium border ${
+                        item.status === 'active' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-50 text-slate-500 border-slate-200'
+                      }`}>
+                        {item.status === 'active' ? '在售' : '已售出'}
+                      </span>
+                    </div>
+                    <p className="font-bold text-primary mt-2">¥{item.price}</p>
+                  </div>
+                </div>
+              </Link>
+            ))
+          )}
+        </div>
+
+        {/* 底部功能菜单 */}
+        <div className="border rounded-2xl overflow-hidden divide-y bg-card mt-8 shadow-sm">
+          <Link
+            href="/chat"
+            className="w-full flex items-center justify-between px-4 py-4 hover:bg-muted/50 transition-colors text-left group"
+          >
+            <span className="flex items-center gap-3 text-sm font-medium">
+              <MessageCircle size={18} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+              我的聊天
+            </span>
+            <span className="text-muted-foreground">›</span>
+          </Link>
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-4 py-4 hover:bg-muted/50 transition-colors text-left text-muted-foreground cursor-not-allowed"
+            disabled
+          >
+            <span className="flex items-center gap-3 text-sm font-medium">
+              <Bookmark size={18} /> 我的收藏（即将上线）
+            </span>
+            <span>›</span>
+          </button>
+          <button
+            type="button"
+            className="w-full flex items-center justify-between px-4 py-4 hover:bg-muted/50 transition-colors text-left text-muted-foreground cursor-not-allowed"
+            disabled
+          >
+            <span className="flex items-center gap-3 text-sm font-medium">
+              <Star size={18} /> 我的评价（即将上线）
+            </span>
+            <span>›</span>
+          </button>
+          <button type="button" onClick={handleOpenSettings} className="w-full flex items-center justify-between px-4 py-4 hover:bg-muted/50 transition-colors text-left group">
+            <span className="flex items-center gap-3 text-sm font-medium">
+              <Settings size={18} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+              账号设置
+            </span>
+            <span className="text-muted-foreground">›</span>
+          </button>
+          
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center justify-between px-4 py-4 hover:bg-red-50 transition-colors text-left group"
+          >
+            <span className="flex items-center gap-3 text-sm font-medium text-red-500">
+              <LogOut size={18} /> 
+              退出登录
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* 账号设置弹窗 */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-background w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">账号设置</h2>
+              <button onClick={() => setIsSettingsOpen(false)} className="p-1 hover:bg-muted rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">修改用户名</label>
+                <div className="flex gap-2">
+                  <input
+                    value={settingsForm.username}
+                    onChange={(e) => setSettingsForm({ ...settingsForm, username: e.target.value })}
+                    className="flex-1 rounded-xl border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => settingsForm.username.trim() && updateUsernameMutation.mutate(settingsForm.username.trim())}
+                    disabled={updateUsernameMutation.isPending || !settingsForm.username.trim()}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-xl text-sm font-medium disabled:opacity-50"
+                  >
+                    保存
+                  </button>
+                </div>
+              </div>
+              <div className="space-y-2 border-t pt-4">
+                <label className="text-sm font-semibold">修改密码</label>
+                <input
+                  type="password"
+                  placeholder="当前密码"
+                  value={settingsForm.current_password}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, current_password: e.target.value })}
+                  className="w-full rounded-xl border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <input
+                  type="password"
+                  placeholder="新密码（至少8位，含字母和数字）"
+                  value={settingsForm.new_password}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, new_password: e.target.value })}
+                  className="w-full rounded-xl border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!settingsForm.current_password || !settingsForm.new_password) return toast.error("请填写完整");
+                    updatePasswordMutation.mutate({
+                      current_password: settingsForm.current_password,
+                      new_password: settingsForm.new_password,
+                    });
+                  }}
+                  disabled={updatePasswordMutation.isPending}
+                  className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-bold hover:opacity-90 disabled:opacity-50 transition-all"
+                >
+                  {updatePasswordMutation.isPending ? "修改中..." : "修改密码"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 编辑资料弹窗 */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-background w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-bold">编辑资料</h2>
+              <button 
+                onClick={() => setIsEditModalOpen(false)}
+                className="p-1 hover:bg-muted rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSaveProfile} className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold flex items-center gap-2">
+                  <Camera size={16} className="text-primary"/> 头像
+                </label>
+                <div className="flex items-center gap-4">
+                  <div className="h-16 w-16 rounded-full bg-muted border overflow-hidden flex items-center justify-center shrink-0">
+                    {editForm.avatar_url ? (
+                      <img src={editForm.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <Camera size={20} className="text-muted-foreground" />
+                    )}
+                  </div>
+                  <label className="flex items-center gap-2 px-4 py-2.5 rounded-xl border bg-muted/30 text-sm font-medium cursor-pointer hover:bg-muted transition-colors">
+                    <Upload size={14} />
+                    {isUploadingAvatar ? "上传中..." : "上传头像"}
+                    <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" disabled={isUploadingAvatar} />
+                  </label>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-semibold">个人简介</label>
+                <textarea 
+                  value={editForm.bio}
+                  onChange={e => setEditForm({...editForm, bio: e.target.value})}
+                  rows={3}
+                  placeholder="介绍一下你自己..."
+                  className="w-full rounded-xl border bg-muted/30 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 transition-all resize-none"
+                />
+              </div>
+              
+              <button 
+                type="submit"
+                disabled={updateProfileMutation.isPending}
+                className="w-full bg-primary text-primary-foreground py-3.5 rounded-xl font-bold hover:opacity-90 disabled:opacity-50 transition-all shadow-lg shadow-primary/20"
+              >
+                {updateProfileMutation.isPending ? "正在保存..." : "保存修改"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
