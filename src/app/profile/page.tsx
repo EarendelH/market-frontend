@@ -142,10 +142,13 @@ export default function ProfilePage() {
                 </div>
               </Link>
             ))}
-            <button className="w-full rounded-2xl border-2 border-dashed py-6 text-sm text-muted-foreground hover:bg-muted/50 transition-colors flex flex-col items-center gap-2">
+            <Link
+              href="/seller/upload"
+              className="w-full rounded-2xl border-2 border-dashed py-6 text-sm text-muted-foreground hover:bg-muted/50 transition-colors flex flex-col items-center gap-2"
+            >
               <span className="text-2xl">＋</span>
               发布新商品
-            </button>
+            </Link>
           </div>
         )}
 

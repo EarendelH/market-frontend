@@ -45,10 +45,13 @@ export default function MarketplacePage() {
               className="w-full rounded-xl bg-muted pl-9 pr-4 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/40 transition-all"
             />
           </div>
-          <button className="shrink-0 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 active:scale-95 transition-all flex items-center gap-1">
+          <Link
+            href="/seller/upload"
+            className="shrink-0 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:opacity-90 active:scale-95 transition-all flex items-center gap-1"
+          >
             <span className="text-base leading-none">＋</span>
             <span className="hidden sm:inline">发布</span>
-          </button>
+          </Link>
         </div>
 
         {/* Category chips */}
