@@ -48,14 +48,23 @@ export default function ItemDetailPage() {
   });
 
   const orderMutation = useMutation({
-    mutationFn: (payload: { item_id: number; price: number; note: string }) => 
+    mutationFn: (payload: { item_id: number; price: number; note: string }) =>
       apiClient.post<{ id: number }>("/orders", payload),
     onSuccess: (data) => {
       toast.success("下单成功！");
       setIsOrderModalOpen(false);
       router.push(`/orders/${data.id}`);
     },
-    onError: (err: any) => toast.error(err.message || "下单失败"),
+    onError: (err: any) => {
+      // Bug #1 修复：针对重复下单的友好提示
+      if (err.code === "DUPLICATE_ORDER") {
+        toast.error("您已经对该商品下过单了，请先完成或取消现有订单");
+      } else if (err.code === "ITEM_UNAVAILABLE") {
+        toast.error("该商品已下架或售出");
+      } else {
+        toast.error(err.message || "下单失败");
+      }
+    },
   });
 
   const updateItemMutation = useMutation({

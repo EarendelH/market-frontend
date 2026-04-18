@@ -143,7 +143,12 @@ export default function MarketplacePage() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["items", "feed", apiParams],
-    queryFn: () => apiClient.get<{ items: ItemRow[] }>("/items", { params: apiParams }),
+    queryFn: () => apiClient.get<{ items: ItemRow[] }>("/items", {
+      params: {
+        ...apiParams,
+        status: "active"  // Bug #2 修复：只获取在售商品
+      }
+    }),
   });
 
   const items = data?.items ?? [];
