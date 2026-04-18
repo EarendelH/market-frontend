@@ -122,8 +122,14 @@ export default function ProfilePage() {
         {activeTab === "我的发布" && (
           <div className="space-y-3">
             {myItems.map((item) => (
-              <Link key={item.id} href={`/marketplace/${item.id}`}>
-                <div className="flex items-center gap-3 bg-card border rounded-2xl p-3 hover:shadow-md transition-all duration-200">
+              <div
+                key={item.id}
+                className="flex items-center gap-3 bg-card border rounded-2xl p-3 hover:shadow-md transition-all duration-200"
+              >
+                <Link
+                  href={`/marketplace/${item.id}`}
+                  className="flex min-w-0 flex-1 items-center gap-3"
+                >
                   <div className={`h-14 w-14 shrink-0 rounded-xl bg-gradient-to-br ${item.gradient} flex items-center justify-center text-2xl`}>
                     {item.emoji}
                   </div>
@@ -132,18 +138,27 @@ export default function ProfilePage() {
                     <p className="text-xs text-muted-foreground mt-0.5">{item.condition}</p>
                     <p className="font-bold mt-1">¥{item.price}</p>
                   </div>
-                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
+                </Link>
+
+                <div className="flex shrink-0 flex-col items-end gap-2">
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${
                     item.status === "在售"
                       ? "bg-green-100 text-green-700"
                       : "bg-muted text-muted-foreground"
                   }`}>
                     {item.status}
                   </span>
+                  <Link
+                    href={`/seller/upload?mode=edit&id=${item.id}`}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    编辑
+                  </Link>
                 </div>
-              </Link>
+              </div>
             ))}
             <Link
-              href="/seller/upload"
+              href="/seller/upload?mode=publish&type=goods"
               className="w-full rounded-2xl border-2 border-dashed py-6 text-sm text-muted-foreground hover:bg-muted/50 transition-colors flex flex-col items-center gap-2"
             >
               <span className="text-2xl">＋</span>
