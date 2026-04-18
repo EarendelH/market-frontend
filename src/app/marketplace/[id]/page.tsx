@@ -1,8 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import {
+  BuyerOrderConfirmationModal,
+  type BuyerOrderConfirmation,
+} from "@/components/orders/buyer-order-confirmation-modal";
 
 const mockItems = [
   { id: "1",  title: "高等数学教材（第七版）",     price: 25,   originalPrice: 45,   condition: "九成新",   seller: "张同学", sellerAvatar: "张", sellerRating: 4.9, sellerDeals: 12, time: "2026-02-28", category: "书籍教材", location: "荔园宿舍",   gradient: "from-blue-400 to-blue-600",     emoji: "📚", description: "同济版高数上下册，笔记不多，内容清晰。考完研不再需要，价格实惠。自提或可约图书馆门口交易。" },
@@ -32,6 +37,8 @@ export default function ItemDetailPage() {
   const router = useRouter();
   const id = params.id as string;
   const item = mockItems.find((i) => i.id === id);
+  const [confirmModalOpen, setConfirmModalOpen] = useState(false);
+  const [buyerSelection, setBuyerSelection] = useState<BuyerOrderConfirmation | null>(null);
 
   if (!item) {
     return (
@@ -128,19 +135,60 @@ export default function ItemDetailPage() {
             </Link>
           </div>
         </div>
+
+        {buyerSelection && (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 p-4 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-emerald-900">买家确认信息已填写</p>
+                <p className="text-xs text-emerald-700">待卖家确认后即可进入线下交易流程</p>
+              </div>
+              <span className="rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white">
+                待确认
+              </span>
+            </div>
+            <div className="space-y-1 text-sm text-emerald-900">
+              <p>
+                <span className="text-emerald-700">交易时间：</span>
+                {buyerSelection.meetingDate} · {buyerSelection.timeSlot}
+              </p>
+              <p>
+                <span className="text-emerald-700">交易地点：</span>
+                {buyerSelection.location}
+                {buyerSelection.locationDetail ? `（${buyerSelection.locationDetail}）` : ""}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Sticky bottom action */}
       <div className="sticky bottom-0 left-0 right-0 bg-background/95 backdrop-blur-sm border-t p-4 flex gap-3">
-        <button className="flex-1 rounded-xl border py-3 text-sm font-semibold hover:bg-muted transition-colors">
+        <button className="rounded-xl border px-4 py-3 text-sm font-semibold hover:bg-muted transition-colors">
           ❤️ 收藏
         </button>
-        <Link href="/chat" className="flex-[2]">
-          <Button className="w-full py-3 rounded-xl font-semibold text-sm">
+        <Link href="/chat" className="flex-1">
+          <Button variant="outline" className="w-full py-3 rounded-xl font-semibold text-sm">
             💬 联系卖家
           </Button>
         </Link>
+        <Button
+          className="flex-1 py-3 rounded-xl font-semibold text-sm"
+          onClick={() => setConfirmModalOpen(true)}
+        >
+          {buyerSelection ? "修改确认信息" : "确认下单"}
+        </Button>
       </div>
+
+      <BuyerOrderConfirmationModal
+        itemTitle={item.title}
+        sellerName={item.seller}
+        price={item.price}
+        itemLocation={item.location}
+        open={confirmModalOpen}
+        onOpenChange={setConfirmModalOpen}
+        onConfirm={setBuyerSelection}
+      />
     </div>
   );
 }
