@@ -52,6 +52,10 @@ export default function ItemDetailPage() {
     );
   }
 
+  const reportHref = `/report?itemId=${encodeURIComponent(item.id)}&itemTitle=${encodeURIComponent(
+    item.title
+  )}&sellerName=${encodeURIComponent(item.seller)}`;
+
   return (
     <div className="min-h-screen max-w-2xl mx-auto">
       {/* Back button */}
@@ -132,6 +136,9 @@ export default function ItemDetailPage() {
             </div>
             <Link href="/chat">
               <Button size="sm" variant="outline">查看主页</Button>
+            </Link>
+            <Link href={reportHref}>
+              <Button size="sm" variant="ghost">🚩 举报</Button>
             </Link>
           </div>
         </div>

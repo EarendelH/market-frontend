@@ -188,7 +188,6 @@ export default function ProfilePage() {
             { icon: "🔔", label: "通知设置" },
             { icon: "🔒", label: "账号安全" },
             { icon: "🎨", label: "外观设置" },
-            { icon: "❓", label: "帮助与反馈" },
           ].map(({ icon, label }) => (
             <button
               key={label}
@@ -201,6 +200,16 @@ export default function ProfilePage() {
               <span className="text-muted-foreground text-sm">›</span>
             </button>
           ))}
+          <Link
+            href="/report"
+            className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-muted/50 transition-colors text-left"
+          >
+            <span className="flex items-center gap-3 text-sm font-medium">
+              <span>🚩</span>
+              举报与反馈
+            </span>
+            <span className="text-muted-foreground text-sm">›</span>
+          </Link>
         </div>
 
         <button
