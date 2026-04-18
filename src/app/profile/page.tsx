@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/stores/auth-store";
 
 const mockUser = {
   name: "南科小卖家",
@@ -31,6 +33,24 @@ const tabs = ["我的发布", "已购商品", "收藏"];
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState("我的发布");
   const [editing, setEditing] = useState(false);
+  const router = useRouter();
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+
+  const displayUser = {
+    name: user?.username ?? mockUser.name,
+    username: user ? `@${user.username}` : mockUser.username,
+    avatar: user?.username?.slice(0, 1) ?? mockUser.avatar,
+    college: mockUser.college,
+    joinDate: mockUser.joinDate,
+    bio: user?.bio ?? mockUser.bio,
+    stats: mockUser.stats,
+  };
+
+  function handleLogout() {
+    logout();
+    router.push("/login");
+  }
 
   return (
     <div className="min-h-screen">
@@ -40,16 +60,16 @@ export default function ProfilePage() {
           <div className="flex items-center gap-4">
             {/* Avatar */}
             <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/60 to-primary flex items-center justify-center text-3xl font-bold text-primary-foreground shadow-lg">
-              {mockUser.avatar}
+              {displayUser.avatar}
             </div>
             <div>
-              <h1 className="text-xl font-bold">{mockUser.name}</h1>
-              <p className="text-sm text-muted-foreground">{mockUser.username}</p>
+              <h1 className="text-xl font-bold">{displayUser.name}</h1>
+              <p className="text-sm text-muted-foreground">{displayUser.username}</p>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-xs bg-primary/10 text-primary rounded-full px-2 py-0.5 font-medium">
-                  {mockUser.college}
+                  {displayUser.college}
                 </span>
-                <span className="text-xs text-muted-foreground">加入于 {mockUser.joinDate}</span>
+                <span className="text-xs text-muted-foreground">加入于 {displayUser.joinDate}</span>
               </div>
             </div>
           </div>
@@ -62,15 +82,15 @@ export default function ProfilePage() {
         </div>
 
         {/* Bio */}
-        <p className="text-sm text-muted-foreground leading-relaxed">{mockUser.bio}</p>
+        <p className="text-sm text-muted-foreground leading-relaxed">{displayUser.bio}</p>
 
         {/* Stats */}
         <div className="grid grid-cols-4 gap-2 mt-4">
           {[
-            { label: "已发布", value: mockUser.stats.published },
-            { label: "已成交", value: mockUser.stats.sold },
-            { label: "信用评分", value: mockUser.stats.rating },
-            { label: "关注者", value: mockUser.stats.followers },
+            { label: "已发布", value: displayUser.stats.published },
+            { label: "已成交", value: displayUser.stats.sold },
+            { label: "信用评分", value: displayUser.stats.rating },
+            { label: "关注者", value: displayUser.stats.followers },
           ].map(({ label, value }) => (
             <div key={label} className="bg-card rounded-xl p-3 text-center border">
               <p className="text-xl font-bold">{value}</p>
@@ -183,7 +203,10 @@ export default function ProfilePage() {
           ))}
         </div>
 
-        <button className="w-full mt-4 rounded-2xl border border-red-200 py-3.5 text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors">
+        <button
+          onClick={handleLogout}
+          className="w-full mt-4 rounded-2xl border border-red-200 py-3.5 text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors"
+        >
           退出登录
         </button>
       </div>

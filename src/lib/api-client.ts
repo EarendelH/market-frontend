@@ -1,7 +1,23 @@
+import { useAuthStore } from "@/stores/auth-store";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api";
 
-interface RequestOptions extends RequestInit {
-  params?: Record<string, string>;
+type QueryValue = string | number | boolean | null | undefined;
+
+interface RequestOptions extends Omit<RequestInit, "body"> {
+  params?: Record<string, QueryValue>;
+  data?: BodyInit | Record<string, unknown> | unknown[] | null;
+}
+
+type RequestData = RequestOptions["data"];
+
+interface ApiEnvelope<T> {
+  success: boolean;
+  data: T;
+  error: {
+    code: string;
+    message: string;
+  } | null;
 }
 
 class ApiClient {
@@ -15,51 +31,108 @@ class ApiClient {
     endpoint: string,
     options: RequestOptions = {}
   ): Promise<T> {
-    const { params, headers, ...rest } = options;
+    const { params, headers, data, ...rest } = options;
 
     let url = `${this.baseURL}${endpoint}`;
     if (params) {
-      const searchParams = new URLSearchParams(params);
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          searchParams.set(key, String(value));
+        }
+      });
       url += `?${searchParams.toString()}`;
     }
 
-    const token =
-      typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const token = useAuthStore.getState().token;
+    const requestHeaders = new Headers(headers);
+    const requestBody =
+      data instanceof FormData
+        ? data
+        : data !== undefined && data !== null
+          ? JSON.stringify(data)
+          : undefined;
+
+    if (!(requestBody instanceof FormData)) {
+      requestHeaders.set("Content-Type", "application/json");
+    }
+    requestHeaders.set("Accept", "application/json");
+
+    if (token) {
+      requestHeaders.set("Authorization", `Bearer ${token}`);
+    }
 
     const response = await fetch(url, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...headers,
-      },
+      headers: requestHeaders,
+      body: requestBody,
       ...rest,
     });
 
+    const isJsonResponse = response.headers
+      .get("content-type")
+      ?.includes("application/json");
+    const payload = isJsonResponse ? await response.json().catch(() => null) : null;
+
     if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      throw new ApiError(response.status, error.message ?? "Request failed");
+      if (response.status === 401 && typeof window !== "undefined") {
+        useAuthStore.getState().clearAuth();
+      }
+
+      const envelope = payload as Partial<ApiEnvelope<unknown>> | null;
+      const errorMessage =
+        envelope?.error?.message ??
+        (payload &&
+        typeof payload === "object" &&
+        "message" in payload &&
+        typeof payload.message === "string"
+          ? payload.message
+          : "Request failed");
+      const errorCode = envelope?.error?.code;
+
+      throw new ApiError(response.status, errorMessage, errorCode);
     }
 
-    return response.json();
+    if (!isJsonResponse) {
+      return undefined as T;
+    }
+
+    if (
+      payload &&
+      typeof payload === "object" &&
+      "success" in payload &&
+      "data" in payload
+    ) {
+      return (payload as ApiEnvelope<T>).data;
+    }
+
+    return payload as T;
   }
 
   get<T>(endpoint: string, options?: RequestOptions) {
     return this.request<T>(endpoint, { ...options, method: "GET" });
   }
 
-  post<T>(endpoint: string, data?: unknown, options?: RequestOptions) {
+  post<T>(endpoint: string, data?: RequestData, options?: RequestOptions) {
     return this.request<T>(endpoint, {
       ...options,
       method: "POST",
-      body: data ? JSON.stringify(data) : undefined,
+      data,
     });
   }
 
-  put<T>(endpoint: string, data?: unknown, options?: RequestOptions) {
+  put<T>(endpoint: string, data?: RequestData, options?: RequestOptions) {
     return this.request<T>(endpoint, {
       ...options,
       method: "PUT",
-      body: data ? JSON.stringify(data) : undefined,
+      data,
+    });
+  }
+
+  patch<T>(endpoint: string, data?: RequestData, options?: RequestOptions) {
+    return this.request<T>(endpoint, {
+      ...options,
+      method: "PATCH",
+      data,
     });
   }
 
@@ -71,7 +144,8 @@ class ApiClient {
 export class ApiError extends Error {
   constructor(
     public status: number,
-    message: string
+    message: string,
+    public code?: string
   ) {
     super(message);
     this.name = "ApiError";

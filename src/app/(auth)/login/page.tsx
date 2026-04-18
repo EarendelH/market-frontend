@@ -3,9 +3,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ApiError, apiClient } from "@/lib/api-client";
+import { useAuthStore } from "@/stores/auth-store";
+import type { AuthUser } from "@/types/auth";
+
+interface LoginResponse {
+  token: string;
+  user: AuthUser;
+}
 
 export default function LoginPage() {
   const router = useRouter();
+  const setAuth = useAuthStore((state) => state.setAuth);
   const [form, setForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -28,10 +37,23 @@ export default function LoginPage() {
     }
     setErrors({});
     setLoading(true);
-    // Simulate login
-    await new Promise((r) => setTimeout(r, 800));
-    setLoading(false);
-    router.push("/marketplace");
+    try {
+      const data = await apiClient.post<LoginResponse>("/auth/login", {
+        sustech_email: form.email,
+        password: form.password,
+      });
+      setAuth(data.user, data.token);
+      router.push("/marketplace");
+    } catch (error) {
+      setErrors({
+        form:
+          error instanceof ApiError
+            ? error.message
+            : "登录失败，请稍后再试。",
+      });
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -54,6 +76,12 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
+            {errors.form && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                {errors.form}
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <label className="text-sm font-medium" htmlFor="email">
                 邮箱
