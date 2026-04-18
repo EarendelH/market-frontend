@@ -210,6 +210,16 @@ export default function ProfilePage() {
             </span>
             <span className="text-muted-foreground text-sm">›</span>
           </Link>
+          <Link
+            href="/admin"
+            className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-muted/50 transition-colors text-left"
+          >
+            <span className="flex items-center gap-3 text-sm font-medium">
+              <span>🛡️</span>
+              管理员数据看板
+            </span>
+            <span className="text-muted-foreground text-sm">›</span>
+          </Link>
         </div>
 
         <button
