@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/marketplace", label: "市场", icon: "🏪" },
+  { href: "/orders", label: "订单", icon: "📦" },
   { href: "/chat", label: "聊天", icon: "💬" },
   { href: "/map", label: "地图", icon: "🗺️" },
   { href: "/profile", label: "我的", icon: "👤" },
